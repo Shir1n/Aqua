@@ -1,99 +1,99 @@
-# Etapa 1 — Automatización de creación de carpeta y documentos
+﻿# Etapa 1 â€” AutomatizaciÃ³n de creaciÃ³n de carpeta y documentos
 
-**Objetivo:** eliminar la gestión manual inicial. Al recibir una solicitud vía Forms, el sistema crea la carpeta del candidato, guarda el CV y copia las plantillas correctas según la familia de cargo.
+**Objetivo:** eliminar la gestiÃ³n manual inicial. Al recibir una solicitud vÃ­a Forms, el sistema crea la carpeta del candidato, guarda el CV y copia las plantillas correctas segÃºn la familia de cargo.
 
 ## Resultado esperado
 
-Carpeta del candidato creada automáticamente con CV + plantillas (informe Excel y pauta Word) listas para iniciar.
+Carpeta del candidato creada automÃ¡ticamente con CV + plantillas (informe Excel y pauta Word) listas para iniciar.
 
 ## Precondiciones
 
-- Formulario Forms "Solicitud de Evaluación Psicolaboral" publicado (campos según `formulario-y-datos.md`).
-- Excel "Registro de Solicitudes" en SharePoint con tabla `Respuestas` (columnas en `formulario-y-datos.md`).
-- Librería `Evaluación Psicolaboral` en `/sites/RRHH` con `_Plantillas/Informes`, `_Plantillas/Pautas`, `Solicitudes` e `InformesFinalizados`.
-- Plan Planner "Evaluación Psicolaboral" con buckets: "Pendiente", "En proceso", "Completado", "Enviado".
-- Licencia Power Automate Premium (necesaria para el conector robusto de SharePoint / HTTP versión avanzada).
+- Formulario Forms "Solicitud de EvaluaciÃ³n Psicolaboral" publicado (campos segÃºn `solicitud-y-datos.md`).
+- Excel "Registro de Solicitudes" en SharePoint con tabla `Respuestas` (columnas en `solicitud-y-datos.md`).
+- LibrerÃ­a `EvaluaciÃ³n Psicolaboral` en `/sites/RRHH` con `_Plantillas/Informes`, `_Plantillas/Pautas`, `Solicitudes` e `InformesFinalizados`.
+- Plan Planner "EvaluaciÃ³n Psicolaboral" con buckets: "Pendiente", "En proceso", "Completado", "Enviado".
+- Licencia Power Automate Premium (necesaria para el conector robusto de SharePoint / HTTP versiÃ³n avanzada).
 - Permisos del autor del flujo sobre la carpeta de adjuntos de Forms (OneDrive).
 
-## Flujo Power Automate — secuencia de acciones
+## Flujo Power Automate â€” secuencia de acciones
 
-| # | Acción | Conector | Detalle |
+| # | AcciÃ³n | Conector | Detalle |
 |---|--------|----------|---------|
-| 1 | When a new response is submitted | Microsoft Forms | Form: "Solicitud de Evaluación Psicolaboral" |
+| 1 | When a new response is submitted | Microsoft Forms | Form: "Solicitud de EvaluaciÃ³n Psicolaboral" |
 | 2 | Get response details | Microsoft Forms | Response Id = `List of response notifications Response Id` |
-| 3 | Compose — Normalizar nombre | Data Operation | Ver expresión **E‑1** usando la respuesta `Nombre del candidato` |
-| 4 | Initialize — Código familia | Data Operation | String, vacío (se llena en el Switch) |
-| 5 | Compose — Ruta informe | Data Operation | Ver **E‑2** |
-| 6 | Compose — Ruta pauta | Data Operation | Ver **E‑3** |
-| 7 | Create new folder | SharePoint | Site: `/sites/RRHH`, List: `Evaluación Psicolaboral`, Path `/Solicitudes`, Name = salida paso 3 |
-| 8a | HTTP — Descargar CV | HTTP (Premium) | Método GET, Uri = `File url` de la pregunta CV, Autenticación personalizada (token Graph) — ver **Consideraciones** |
-| 8b | Create file | SharePoint | Folder = carpeta recién creada, Name = `CV_<Normalizado>` + extensión original, Content = body de 8a |
+| 3 | Compose â€” Normalizar nombre | Data Operation | Ver expresiÃ³n **Eâ€‘1** usando la respuesta `Nombre del candidato` |
+| 4 | Initialize â€” CÃ³digo familia | Data Operation | String, vacÃ­o (se llena en el Switch) |
+| 5 | Compose â€” Ruta informe | Data Operation | Ver **Eâ€‘2** |
+| 6 | Compose â€” Ruta pauta | Data Operation | Ver **Eâ€‘3** |
+| 7 | Create new folder | SharePoint | Site: `/sites/RRHH`, List: `EvaluaciÃ³n Psicolaboral`, Path `/Solicitudes`, Name = salida paso 3 |
+| 8a | HTTP â€” Descargar CV | HTTP (Premium) | MÃ©todo GET, Uri = `File url` de la pregunta CV, AutenticaciÃ³n personalizada (token Graph) â€” ver **Consideraciones** |
+| 8b | Create file | SharePoint | Folder = carpeta reciÃ©n creada, Name = `CV_<Normalizado>` + extensiÃ³n original, Content = body de 8a |
 | 9 | Copy file | SharePoint | Source = salida paso 5, Destination = carpeta candidato, Dest. name = `Informe_<Normalizado>.xlsx` |
 | 10 | Copy file | SharePoint | Source = salida paso 6, Destination = carpeta candidato, Dest. name = `PautaEntrevista_<Normalizado>.docx` |
-| 11 | Update a row (o Add row) | Excel Online (Business) | `Estado = En proceso`, `CarpetaCandidato = <URL carpeta>` — ver **E‑4** |
-| 12 | Create a task | Planner | Título = `<Nombre> — <Cargo>`, Bucket "En proceso", Descripción con links — ver **E‑5** |
-| 13 | Send an email (V2) | Office 365 Outlook | A psicólogo/correo analista, con links a carpeta y CV |
+| 11 | Update a row (o Add row) | Excel Online (Business) | `Estado = En proceso`, `CarpetaCandidato = <URL carpeta>` â€” ver **Eâ€‘4** |
+| 12 | Create a task | Planner | TÃ­tulo = `<Nombre> â€” <Cargo>`, Bucket "En proceso", DescripciÃ³n con links â€” ver **Eâ€‘5** |
+| 13 | Send an email (V2) | Office 365 Outlook | A psicÃ³logo/correo analista, con links a carpeta y CV |
 
-> **El Switch** (resolución de familia → código) se implementa como variable `Código familia` asignada con un `Switch` o con `if()` encadenados, antes del paso 5-6. Cada rama: `Administrativa → ADM`, `Operativa → OPE`, etc. (tabla en `formulario-y-datos.md`). Rama por defecto: enviar alerta y terminar e el flujo.
+> **El Switch** (resoluciÃ³n de familia â†’ cÃ³digo) se implementa como variable `CÃ³digo familia` asignada con un `Switch` o con `if()` encadenados, antes del paso 5-6. Cada rama: `Administrativa â†’ ADM`, `Operativa â†’ OPE`, etc. (tabla en `solicitud-y-datos.md`). Rama por defecto: enviar alerta y terminar e el flujo.
 
 ## Expresiones (Power Automate)
 
-**E‑1 — Normalizar nombre** (minúsculas, sin tildes, espacios → `_`):
+**Eâ€‘1 â€” Normalizar nombre** (minÃºsculas, sin tildes, espacios â†’ `_`):
 
 ```
 replace(replace(replace(replace(replace(
   toLower(trim(items('Apply_to_each')?['NombreCandidato'])),
-  'á','a'),'é','e'),'í','i'),'ó','o'),'ú','u')
+  'Ã¡','a'),'Ã©','e'),'Ã­','i'),'Ã³','o'),'Ãº','u')
 ```
 
-> Simplificado: aplicar los `replace` de acentos y luego `replace(..,' ','_')` y los nueve `replace` de caracteres inválidos de SharePoint (`" * : < > ? / \ |`), encadenados.
+> Simplificado: aplicar los `replace` de acentos y luego `replace(..,' ','_')` y los nueve `replace` de caracteres invÃ¡lidos de SharePoint (`" * : < > ? / \ |`), encadenados.
 
-**E‑2 — Ruta plantilla informe:**
+**Eâ€‘2 â€” Ruta plantilla informe:**
 
 ```
 concat('/_Plantillas/Informes/', variables('CodigoFamilia'), '-informe.xlsx')
 ```
 
-**E‑3 — Ruta plantilla pauta:**
+**Eâ€‘3 â€” Ruta plantilla pauta:**
 
 ```
 concat('/_Plantillas/Pautas/', variables('CodigoFamilia'), '-pauta.docx')
 ```
 
-**E‑4 — URL de la carpeta creada:**
+**Eâ€‘4 â€” URL de la carpeta creada:**
 
 ```
 concat('https://[tenant].sharepoint.com/sites/RRHH/Evaluacion%20Psicolaboral/Solicitudes/',
        uriComponent(outputs('Crear_carpeta')))
 ```
 
-**E‑5 — Título y descripción de la tarea Planner:**
+**Eâ€‘5 â€” TÃ­tulo y descripciÃ³n de la tarea Planner:**
 
 ```
-Título:   concat(outputs('Get_response_details')?['NombreCandidato'], ' — ', outputs('Get_response_details')?['NombreCargo'])
-Descripción: carpeta: <E‑4> / CV: <File url> / familia: <Código>
+TÃ­tulo:   concat(outputs('Get_response_details')?['NombreCandidato'], ' â€” ', outputs('Get_response_details')?['NombreCargo'])
+DescripciÃ³n: carpeta: <Eâ€‘4> / CV: <File url> / familia: <CÃ³digo>
 ```
 
-## Configuración previa en SharePoint
+## ConfiguraciÃ³n previa en SharePoint
 
-- Crear librería `Evaluación Psicolaboral` en `/sites/RRHH` con `_Plantillas/Informes`, `_Plantillas/Pautas`, `Solicitudes` e `InformesFinalizados`.
-- Subir una plantilla por familia usando la convención `COD-informe.xlsx` y `COD-pauta.docx` (ver `formulario-y-datos.md`).
+- Crear librerÃ­a `EvaluaciÃ³n Psicolaboral` en `/sites/RRHH` con `_Plantillas/Informes`, `_Plantillas/Pautas`, `Solicitudes` e `InformesFinalizados`.
+- Subir una plantilla por familia usando la convenciÃ³n `COD-informe.xlsx` y `COD-pauta.docx` (ver `solicitud-y-datos.md`).
 
-## Consideraciones técnicas
+## Consideraciones tÃ©cnicas
 
-- **Descarga del CV:** los adjuntos de Forms se guardan en OneDrive del autor del Forms y el `File url` requiere autenticación. Opciones:
-  1. Conector `SharePoint` si el autor mueve el adjunto a la librería (menos directo).
-  2. Conector `HTTP` Premium con autenticación Graph (`GET /me/...` o el link recibido) y luego `Create file`.
+- **Descarga del CV:** los adjuntos de Forms se guardan en OneDrive del autor del Forms y el `File url` requiere autenticaciÃ³n. Opciones:
+  1. Conector `SharePoint` si el autor mueve el adjunto a la librerÃ­a (menos directo).
+  2. Conector `HTTP` Premium con autenticaciÃ³n Graph (`GET /me/...` o el link recibido) y luego `Create file`.
   3. Guardar el `File url` en Excel y dejar descarga manual solo como respaldo.
-- Conservar la **extensión original** del CV (pdf/docx) al crear el archivo: `CV_<Normalizado>.pdf`, etc.
-- **HTTP Premium** requiere licencia Power Automate Premium en la conexión.
-- Añadir **control de errores** (Scope + Configure run after) en los pasos de copia para que un fallo no deje carpetas a medias.
+- Conservar la **extensiÃ³n original** del CV (pdf/docx) al crear el archivo: `CV_<Normalizado>.pdf`, etc.
+- **HTTP Premium** requiere licencia Power Automate Premium en la conexiÃ³n.
+- AÃ±adir **control de errores** (Scope + Configure run after) en los pasos de copia para que un fallo no deje carpetas a medias.
 
-## Checklist de validación (Etapa 1)
+## Checklist de validaciÃ³n (Etapa 1)
 
-- [ ] Carpeta creada con nombre normalizado, sin caracteres inválidos.
-- [ ] CV guardado dentro de la carpeta con extensión correcta.
-- [ ] Se copiaron informe y pauta correctos según `Código` de familia.
+- [ ] Carpeta creada con nombre normalizado, sin caracteres invÃ¡lidos.
+- [ ] CV guardado dentro de la carpeta con extensiÃ³n correcta.
+- [ ] Se copiaron informe y pauta correctos segÃºn `CÃ³digo` de familia.
 - [ ] Estado actualizado en Excel y tarea creada en Planner con bucket "En proceso".
-- [ ] Familia sin código/con plantilla faltante genera alerta y no rompe el flujo.
-- [ ] Nombre duplicado no pisa una carpeta existente (manejo de colisión).
+- [ ] Familia sin cÃ³digo/con plantilla faltante genera alerta y no rompe el flujo.
+- [ ] Nombre duplicado no pisa una carpeta existente (manejo de colisiÃ³n).

@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { FAMILIAS, ORIGENES, SI_NO, UBICACIONES, UNIDADES } from './catalogs'
 
-const FLOW_URL = (import.meta.env.VITE_FLOW_URL as string | undefined) ?? ''
+const FLOW_URL =
+  (import.meta.env.VITE_FLOW_URL as string | undefined) ??
+  'http://localhost:3001/api/solicitud'
 
 type FormState = {
   reclutador: string

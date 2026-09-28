@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.js'
 import candidatosRoutes from './routes/candidatos.js'
 import solicitudesRoutes from './routes/solicitudes.js'
 import dashboardRoutes from './routes/dashboard.js'
+import solicitudRoutes from './routes/solicitud.js'
 
 initDb()
 
@@ -16,6 +17,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/candidatos', candidatosRoutes)
 app.use('/api/solicitudes', solicitudesRoutes)
 app.use('/api/dashboard', dashboardRoutes)
+app.use('/api/solicitud', solicitudRoutes)
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada' })
