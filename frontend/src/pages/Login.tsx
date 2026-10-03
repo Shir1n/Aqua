@@ -1,8 +1,12 @@
 import { useState, type CSSProperties, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../AuthContext'
 import logoVentisqueros from '../assets/chile_ventisqueros.jpg'
 import logoPagInicio from '../assets/logo_pag_inicio.png'
 
 export default function Login() {
+  const { login } = useAuth()
+  const navigate = useNavigate()
   const [usuario, setUsuario] = useState('')
   const [contrasena, setContrasena] = useState('')
   const [mostrarContrasena, setMostrarContrasena] = useState(false)
@@ -168,6 +172,13 @@ export default function Login() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    login({
+      id: 1,
+      nombre: 'Usuario temporal',
+      correo: 'temporal@aquachile.cl',
+      rol: 'Administrador',
+    })
+    navigate('/')
   }
 
   return (
