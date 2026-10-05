@@ -18,6 +18,7 @@ export default function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('aqua-theme') === 'dark')
 
   useEffect(() => {
@@ -35,8 +36,12 @@ export default function Layout() {
   }
 
   return (
-    <div className="app-shell">
-      <aside className={`app-sidebar${menuOpen ? ' mobile-open' : ''}`}>
+    <div className={`app-shell${expanded ? '' : ' sidebar-collapsed'}`}>
+      <aside
+        className={`app-sidebar${menuOpen ? ' mobile-open' : ''}${expanded ? '' : ' collapsed'}`}
+        onMouseEnter={() => setExpanded(true)}
+        onMouseLeave={() => setExpanded(false)}
+      >
         <div className="sidebar-top">
           <Link className="sidebar-brand" to="/" onClick={closeMenu}>
             <span className="sidebar-brand-mark">EP</span>
