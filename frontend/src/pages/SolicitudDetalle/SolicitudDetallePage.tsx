@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { api } from '../api'
-import { ESTADOS, RESULTADOS } from '../catalogs'
-import type { Solicitud } from '../types'
+import { api } from '../../api'
+import { ESTADOS, RESULTADOS } from '../../catalogs'
+import type { Solicitud } from '../../types'
 
 function estadoBadge(estado: string) {
   const map: Record<string, string> = {

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '../api'
-import type { Candidato } from '../types'
+import { api } from '../../api'
+import type { Candidato } from '../../types'
+import './candidatos.css'
 
 function initials(nombre: string) {
   return nombre

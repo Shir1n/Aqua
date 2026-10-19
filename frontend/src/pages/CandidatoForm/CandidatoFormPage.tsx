@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api } from '../api'
-import { FAMILIAS } from '../catalogs'
+import { api } from '../../api'
+import { FAMILIAS } from '../../catalogs'
 
 const empty = {
   nombre: '',

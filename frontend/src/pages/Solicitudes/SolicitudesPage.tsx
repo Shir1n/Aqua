@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api } from '../api'
-import { ESTADOS } from '../catalogs'
-import type { Solicitud } from '../types'
+import { api } from '../../api'
+import { ESTADOS } from '../../catalogs'
+import type { Solicitud } from '../../types'
+import './solicitudes.css'
 
 function initials(nombre: string) {
   return nombre

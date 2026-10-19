@@ -1,8 +1,8 @@
 import { useState, type CSSProperties, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../AuthContext'
-import logoVentisqueros from '../assets/chile_ventisqueros.jpg'
-import logoPagInicio from '../assets/logo_pag_inicio.png'
+import { useAuth } from '../../AuthContext'
+import logoVentisqueros from '../../assets/chile_ventisqueros.jpg'
+import logoPagInicio from '../../assets/logo_pag_inicio.png'
 
 export default function Login() {
   const { login } = useAuth()

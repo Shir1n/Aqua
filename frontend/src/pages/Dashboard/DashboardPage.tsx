@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '../api'
-import type { Candidato, Dashboard as DashboardData, Solicitud } from '../types'
+import { api } from '../../api'
+import type { Candidato, Dashboard as DashboardData, Solicitud } from '../../types'
+import './dashboard.css'
 
 type Activity = {
   type: 'solicitud' | 'candidato'

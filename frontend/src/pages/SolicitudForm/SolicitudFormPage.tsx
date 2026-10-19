@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../api'
-import { ESTADOS, FAMILIAS } from '../catalogs'
-import type { Candidato, Usuario } from '../types'
+import { api } from '../../api'
+import { ESTADOS, FAMILIAS } from '../../catalogs'
+import type { Candidato, Usuario } from '../../types'
 
 export default function SolicitudForm() {
   const navigate = useNavigate()
