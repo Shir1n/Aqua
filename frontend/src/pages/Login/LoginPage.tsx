@@ -11,6 +11,7 @@ export default function Login() {
   const [contrasena, setContrasena] = useState('')
   const [mostrarContrasena, setMostrarContrasena] = useState(false)
   const [recordarme, setRecordarme] = useState(false)
+  const [errorLogin, setErrorLogin] = useState('')
 
   const pageStyle: CSSProperties = {
     height: '100vh',
@@ -172,6 +173,13 @@ export default function Login() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
+
+    if (!usuario.trim() || !contrasena.trim()) {
+      setErrorLogin('Por favor, completa el usuario y la contraseña para continuar.')
+      return
+    }
+
+    setErrorLogin('')
     login({
       id: 1,
       nombre: 'Usuario temporal',
@@ -205,8 +213,12 @@ export default function Login() {
                 type="text"
                 className="login-input"
                 value={usuario}
-                onChange={(e) => setUsuario(e.target.value)}
+                onChange={(e) => {
+                  setUsuario(e.target.value)
+                  if (errorLogin) setErrorLogin('')
+                }}
                 autoComplete="username"
+                required
               />
             </div>
 
@@ -221,8 +233,12 @@ export default function Login() {
                   className="login-input"
                   style={{ paddingRight: 46 }}
                   value={contrasena}
-                  onChange={(e) => setContrasena(e.target.value)}
+                  onChange={(e) => {
+                    setContrasena(e.target.value)
+                    if (errorLogin) setErrorLogin('')
+                  }}
                   autoComplete="current-password"
+                  required
                 />
                 <button
                   type="button"
@@ -244,6 +260,20 @@ export default function Login() {
                 </button>
               </div>
             </div>
+
+            {errorLogin && (
+              <p
+                role="alert"
+                style={{
+                  margin: '16px 0 0',
+                  color: '#B91C1C',
+                  fontSize: 14,
+                  textAlign: 'center',
+                }}
+              >
+                {errorLogin}
+              </p>
+            )}
 
             <div style={forgotStyle}>¿Olvidaste tu contraseña?</div>
 
