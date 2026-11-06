@@ -55,9 +55,40 @@ export function initDb() {
       estado TEXT NOT NULL CHECK (estado IN ('Pendiente','En proceso','Finalizada')),
       creado_en TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS documentos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      solicitud_id INTEGER NOT NULL REFERENCES solicitudes(id) ON DELETE CASCADE,
+      tipo TEXT NOT NULL CHECK (tipo IN ('cv','descriptor','informe','pauta','formulario')),
+      nombre TEXT NOT NULL,
+      ruta TEXT NOT NULL,
+      creado_en TEXT NOT NULL
+    );
   `)
 
+  migrarSolicitudes()
   seed()
+}
+
+// Columnas agregadas después del esquema inicial: se añaden si la BD ya existía.
+const COLUMNAS_SOLICITUD = [
+  'carpeta',
+  'reclutador',
+  'origen',
+  'ubicacion',
+  'unidad',
+  'ceco',
+  'requiere_referencias',
+  'es_referido',
+]
+
+function migrarSolicitudes() {
+  const existentes = new Set(
+    db.prepare('PRAGMA table_info(solicitudes)').all().map((c) => c.name)
+  )
+  for (const col of COLUMNAS_SOLICITUD) {
+    if (!existentes.has(col)) db.exec(`ALTER TABLE solicitudes ADD COLUMN ${col} TEXT`)
+  }
 }
 
 function seed() {

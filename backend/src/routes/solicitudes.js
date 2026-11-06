@@ -36,7 +36,10 @@ router.get('/:id', (req, res) => {
   const evaluacion = db
     .prepare('SELECT * FROM evaluaciones WHERE solicitud_id = ?')
     .get(req.params.id)
-  res.json({ ...row, evaluacion: evaluacion || null })
+  const documentos = db
+    .prepare('SELECT id, tipo, nombre, creado_en FROM documentos WHERE solicitud_id = ? ORDER BY id')
+    .all(req.params.id)
+  res.json({ ...row, evaluacion: evaluacion || null, documentos })
 })
 
 router.post('/', (req, res) => {
