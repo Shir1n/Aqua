@@ -1,8 +1,26 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../../api'
 import { ESTADOS, RESULTADOS } from '../../catalogs'
-import type { Solicitud } from '../../types'
+import type { Solicitud, TipoDocumento } from '../../types'
+
+const DATOS_FORMULARIO = [
+  ['reclutador', 'Reclutador'],
+  ['origen', 'Origen'],
+  ['ubicacion', 'Ubicación'],
+  ['unidad', 'Unidad'],
+  ['ceco', 'CECO'],
+  ['requiere_referencias', 'Requiere referencias'],
+  ['es_referido', 'Referido'],
+] as const satisfies ReadonlyArray<readonly [keyof Solicitud, string]>
+
+const TIPO_DOCUMENTO: Record<TipoDocumento, string> = {
+  cv: 'CV',
+  descriptor: 'Descriptor',
+  informe: 'Informe',
+  pauta: 'Pauta',
+  formulario: 'Formulario',
+}
 
 function estadoBadge(estado: string) {
   const map: Record<string, string> = {
@@ -109,9 +127,37 @@ export default function SolicitudDetalle() {
                 <dd className="col-7">{solicitud.fecha_solicitud}</dd>
                 <dt className="col-5">Responsable</dt>
                 <dd className="col-7">{solicitud.responsable_nombre ?? 'Sin asignar'}</dd>
+                {DATOS_FORMULARIO.map(([campo, etiqueta]) =>
+                  solicitud[campo] ? (
+                    <Fragment key={campo}>
+                      <dt className="col-5">{etiqueta}</dt>
+                      <dd className="col-7">{solicitud[campo]}</dd>
+                    </Fragment>
+                  ) : null,
+                )}
                 <dt className="col-5">Observaciones</dt>
-                <dd className="col-7">{solicitud.observaciones || '—'}</dd>
+                <dd className="col-7" style={{ whiteSpace: 'pre-line' }}>{solicitud.observaciones || '—'}</dd>
               </dl>
+
+              <hr />
+              <h6 className="fw-semibold">Carpeta del candidato</h6>
+              {solicitud.documentos?.length ? (
+                <ul className="list-unstyled mb-0">
+                  {solicitud.documentos.map((d) => (
+                    <li key={d.id} className="d-flex justify-content-between align-items-center py-1">
+                      <span>
+                        <span className="badge text-bg-light me-2">{TIPO_DOCUMENTO[d.tipo]}</span>
+                        {d.nombre}
+                      </span>
+                      <a className="btn btn-sm btn-outline-primary" href={`/api/documentos/${d.id}/descargar`}>
+                        Descargar
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted mb-0">Esta solicitud no tiene carpeta de documentos.</p>
+              )}
 
               <hr />
               <label className="form-label">Actualizar estado</label>
