@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -118,7 +118,7 @@ describe('SolicitudDetallePage', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Guardar evaluación' }));
 
-    expect(mocks.saveEvaluacion).toHaveBeenCalled();
+    await waitFor(() => expect(mocks.saveEvaluacion).toHaveBeenCalledWith(1, expect.objectContaining({ estado: 'En proceso', borrador: true, competencias: {}, recomendaciones: '' })));
     expect(await screen.findByText('Evaluación registrada')).toBeInTheDocument();
   });
 
@@ -132,4 +132,24 @@ describe('SolicitudDetallePage', () => {
 
     expect(screen.getByRole('link', { name: 'Volver' })).toHaveAttribute('href', '/solicitudes');
   });
+  it('muestra error si falla la actualización del estado', async () => {
+    mocks.getSolicitud.mockResolvedValue(solicitudMock);
+    mocks.getCandidato.mockResolvedValue(candidatoMock);
+    mocks.updateSolicitud.mockRejectedValue(new Error('No se pudo actualizar'));
+    renderDetalle();
+    await screen.findByRole('heading', { name: /Solicitud #1/ });
+    await userEvent.setup().selectOptions(screen.getAllByRole('combobox')[0], 'Finalizada');
+    expect(await screen.findByText('No se pudo actualizar')).toBeInTheDocument();
+  });
+
+  it('muestra error si falla el guardado de evaluación', async () => {
+    mocks.getSolicitud.mockResolvedValue(solicitudMock);
+    mocks.getCandidato.mockResolvedValue(candidatoMock);
+    mocks.saveEvaluacion.mockRejectedValue(new Error('No se pudo registrar'));
+    renderDetalle();
+    await screen.findByRole('heading', { name: /Solicitud #1/ });
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Guardar evaluación' }));
+    expect(await screen.findByText('No se pudo registrar')).toBeInTheDocument();
+  });
+
 });
