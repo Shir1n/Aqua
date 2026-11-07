@@ -1,0 +1,60 @@
+/* SIGMA-Aqua · formularios: solo presentación, sin alterar la lógica */
+.sigma-form-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin:0 0 20px;max-width:1040px}
+.sigma-kicker{display:block;font-size:.67rem;font-weight:800;letter-spacing:.14em;color:#6a8297;margin-bottom:8px}
+.sigma-form-heading h1{font-size:clamp(1.55rem,2vw,1.95rem);font-weight:800;letter-spacing:-.035em;margin:0 0 5px;color:var(--app-text,#19344b)}
+.sigma-form-heading p{font-size:.85rem;color:var(--app-muted,#728496);margin:0;line-height:1.5}
+.sigma-step{font-size:.72rem;font-weight:750;color:#127fa7;background:#e8f5fa;border:1px solid #cce9f2;border-radius:30px;padding:8px 12px;white-space:nowrap}
+.sigma-form-shell{width:min(100%,920px);background:var(--app-surface,#fff);border:1px solid var(--app-border,#e1e9f1);border-radius:17px;box-shadow:0 10px 30px rgba(20,50,75,.045);overflow:hidden}
+.sigma-form-body{padding:24px 28px}
+.sigma-section-heading{display:flex;align-items:flex-start;gap:11px;padding-top:4px;margin:0 0 16px}
+.sigma-section-heading:not(:first-of-type){border-top:1px solid var(--app-border,#e1e9f1);padding-top:20px;margin-top:7px}
+.sigma-section-number{display:grid;place-items:center;flex:none;width:29px;height:29px;border-radius:9px;background:#e4f4fa;color:#117da7;font-size:.72rem;font-weight:800}
+.sigma-section-heading h2{font-size:.95rem;line-height:1.3;margin:0 0 3px;font-weight:800;color:var(--app-text,#19344b)}
+.sigma-section-heading p,.sigma-form-intro{font-size:.76rem;color:var(--app-muted,#718397);margin:0;line-height:1.5}
+.sigma-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
+.sigma-field{margin-bottom:15px;min-width:0}.sigma-field-full{grid-column:1/-1}
+.sigma-form-shell .form-label,.sigma-detail-card .form-label{font-size:.77rem;font-weight:700;margin-bottom:6px}
+.sigma-form-shell .form-control,.sigma-form-shell .form-select,.sigma-detail-card .form-control,.sigma-detail-card .form-select{min-height:40px;padding:8px 11px;font-size:.83rem;border-radius:9px}
+.sigma-form-shell textarea,.sigma-detail-card textarea{min-height:82px}
+.sigma-form-shell .row{--bs-gutter-x:16px}
+.sigma-form-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid var(--app-border,#e1e9f1);margin-top:8px;padding-top:19px}
+.sigma-form-actions>span{font-size:.72rem;color:var(--app-muted,#718397)}
+.sigma-form-actions .btn,.sigma-eval-actions .btn{font-size:.81rem;padding:9px 16px}
+.sigma-detail-header{align-items:center;gap:14px}.sigma-detail-header h1{font-size:1.6rem;margin:0 0 4px}
+.sigma-detail-header h1 .badge{font-size:.65rem;vertical-align:middle!important}
+.sigma-detail-grid .sigma-detail-card{border:1px solid var(--app-border,#e1e9f1);overflow:hidden}
+.sigma-detail-card .card-header{display:flex;flex-direction:column;gap:4px;padding:16px 19px;background:var(--app-surface,#fff)}
+.sigma-card-eyebrow{font-size:.62rem;letter-spacing:.13em;font-weight:800;color:var(--app-muted,#718397)}
+.sigma-detail-card .card-header strong{font-size:.94rem;color:var(--app-text,#19344b)}
+.sigma-detail-card .card-body{padding:19px}.sigma-detail-card dl{font-size:.82rem;row-gap:9px}
+.sigma-detail-card dt{font-weight:650;color:var(--app-muted,#718397)}
+.sigma-detail-card dd{color:var(--app-text,#19344b);overflow-wrap:anywhere}
+.sigma-form-intro{margin-bottom:17px}.sigma-eval-actions{border-top:1px solid var(--app-border,#e1e9f1);padding-top:15px;display:flex;justify-content:flex-end}
+:root[data-theme="dark"] .sigma-step{background:#153b4a;color:#80d5f0;border-color:#2c5768}
+:root[data-theme="dark"] .sigma-section-number{background:#1b4152;color:#80d5f0}
+:root[data-theme="dark"] .sigma-form-shell,:root[data-theme="dark"] .sigma-detail-card{background:#142432;border-color:#294050}
+:root[data-theme="dark"] .sigma-detail-card .card-header{background:#192d3c}
+@media(max-width:680px){.sigma-form-heading{align-items:flex-start;flex-direction:column}.sigma-form-body{padding:18px}.sigma-form-grid{grid-template-columns:1fr}.sigma-form-actions{flex-direction:column;align-items:stretch}.sigma-form-actions .d-flex{justify-content:flex-end}.sigma-detail-header{align-items:flex-start;flex-direction:column}}
+
+/* Selector editable de cargos */
+.sigma-cargo-combobox{position:relative;min-width:0}
+.sigma-cargo-input-wrap{position:relative}
+.sigma-form-shell .sigma-cargo-input-wrap input{padding-right:42px}
+.sigma-cargo-toggle{position:absolute;right:3px;top:3px;bottom:3px;width:37px;border:0;border-left:1px solid var(--app-border,#e1e9f1);border-radius:0 7px 7px 0;background:transparent;color:var(--app-text,#19344b);font-size:22px;cursor:pointer}
+.sigma-cargo-toggle:hover{background:rgba(39,150,187,.1)}
+.sigma-cargo-options{position:absolute;z-index:30;top:calc(100% + 5px);left:0;right:0;max-height:240px;overflow:auto;background:var(--app-surface,#fff);border:1px solid var(--app-border,#d7e4ed);box-shadow:0 12px 28px rgba(10,37,57,.18);border-radius:10px;padding:5px}
+.sigma-cargo-options-caption{font-size:10px;font-weight:750;letter-spacing:.05em;color:var(--app-muted,#718397);padding:9px 10px}
+.sigma-cargo-options button{display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;width:100%;border:0;border-radius:7px;padding:10px;background:transparent;color:var(--app-text,#19344b);cursor:pointer;font-size:12px}
+.sigma-cargo-options button:hover,.sigma-cargo-options button[aria-selected="true"]{background:rgba(26,148,188,.12)}
+.sigma-cargo-options button small{color:var(--app-muted,#718397);font-size:10px;text-align:right}
+.sigma-cargo-options p{font-size:12px;color:var(--app-muted,#718397);padding:9px;margin:0}
+.sigma-cargo-hint{display:block;margin-top:5px;color:var(--app-muted,#718397);font-size:10px}
+:root[data-theme="dark"] .sigma-cargo-options{background:#142432;border-color:#294050}
+:root[data-theme="dark"] .sigma-cargo-toggle{color:#e3edf3}
+
+/* Selector de familia + cargo, con opción de entrada manual */
+.sigma-cargo-custom-option{display:inline-flex;align-items:center;gap:9px;margin:11px 0 2px;cursor:pointer;color:var(--app-text,#19344b);font-size:.78rem;font-weight:600}
+.sigma-cargo-custom-option input{width:16px;height:16px;accent-color:#1188b0;cursor:pointer}
+.sigma-cargo-custom-option:focus-within{outline:2px solid #45b7d4;outline-offset:4px;border-radius:4px}
+.sigma-field .form-control:disabled,.sigma-field .form-select:disabled{opacity:.65;cursor:not-allowed}
+:root[data-theme="dark"] .sigma-cargo-custom-option{color:#e4edf5}

@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { db } from '../db.js'
+import { requireRole, audit } from '../security.js'
 
 const router = Router()
 
@@ -26,7 +27,17 @@ router.get('/:id', (req, res) => {
   res.json(row)
 })
 
-router.post('/', (req, res) => {
+router.get('/:id/historial', (req,res)=>{
+ const candidato=db.prepare('SELECT id,nombre FROM candidatos WHERE id=?').get(req.params.id)
+ if(!candidato)return res.status(404).json({error:'Candidato no encontrado'})
+ const solicitudes=db.prepare(`SELECT s.*,u.nombre AS responsable_nombre,e.fecha_evaluacion,e.resultado,e.estado AS estado_evaluacion,e.borrador
+ FROM solicitudes s LEFT JOIN usuarios u ON u.id=s.responsable_id LEFT JOIN evaluaciones e ON e.solicitud_id=s.id
+ WHERE s.candidato_id=? ORDER BY s.id DESC`).all(candidato.id)
+ const historial=db.prepare(`SELECT h.* FROM historial_solicitudes h JOIN solicitudes s ON s.id=h.solicitud_id WHERE s.candidato_id=? ORDER BY h.creado_en DESC LIMIT 100`).all(candidato.id)
+ res.json({candidato,solicitudes,historial})
+})
+
+router.post('/', requireRole('Administrador','Analista','Jefatura'), (req, res) => {
   const { nombre, correo, telefono, cargo, familiaCargo } = req.body || {}
   if (!nombre || !correo || !cargo || !familiaCargo) {
     return res.status(400).json({ error: 'Nombre, correo, cargo y familia de cargo son obligatorios' })
@@ -38,10 +49,11 @@ router.post('/', (req, res) => {
     )
     .run(nombre, correo, telefono || '', cargo, familiaCargo, creadoEn)
   const row = db.prepare('SELECT * FROM candidatos WHERE id = ?').get(info.lastInsertRowid)
+  audit(req,'Candidato creado',String(info.lastInsertRowid))
   res.status(201).json(row)
 })
 
-router.put('/:id', (req, res) => {
+router.put('/:id', requireRole('Administrador','Analista','Jefatura'), (req, res) => {
   const existing = db.prepare('SELECT * FROM candidatos WHERE id = ?').get(req.params.id)
   if (!existing) return res.status(404).json({ error: 'Candidato no encontrado' })
   const { nombre, correo, telefono, cargo, familiaCargo } = req.body || {}
@@ -59,7 +71,7 @@ router.put('/:id', (req, res) => {
   res.json(row)
 })
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireRole('Administrador','Jefatura'), (req, res) => {
   const info = db.prepare('DELETE FROM candidatos WHERE id = ?').run(req.params.id)
   if (info.changes === 0) return res.status(404).json({ error: 'Candidato no encontrado' })
   res.status(204).end()

@@ -6,6 +6,7 @@ export interface Usuario {
   nombre: string
   correo: string
   rol: Rol
+  token?: string
 }
 
 export interface Candidato {
@@ -26,6 +27,9 @@ export interface Evaluacion {
   observaciones: string
   estado: string
   creado_en: string
+  competencias?: string
+  recomendaciones?: string
+  borrador?: number
 }
 
 export interface Solicitud {
@@ -40,25 +44,7 @@ export interface Solicitud {
   responsable_nombre: string | null
   observaciones: string
   creado_en: string
-  carpeta?: string | null
-  reclutador?: string | null
-  origen?: string | null
-  ubicacion?: string | null
-  unidad?: string | null
-  ceco?: string | null
-  requiere_referencias?: string | null
-  es_referido?: string | null
   evaluacion?: Evaluacion | null
-  documentos?: Documento[]
-}
-
-export type TipoDocumento = 'cv' | 'descriptor' | 'informe' | 'pauta' | 'formulario'
-
-export interface Documento {
-  id: number
-  tipo: TipoDocumento
-  nombre: string
-  creado_en: string
 }
 
 export interface Dashboard {

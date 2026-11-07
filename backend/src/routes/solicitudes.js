@@ -1,7 +1,14 @@
 import { Router } from 'express'
 import { db } from '../db.js'
+import { notify } from './extra.js'
+import { audit, requireRole } from '../security.js'
 
 const router = Router()
+
+function registrarHistorial(solicitudId, accion, detalle = '', usuario = 'Sistema') {
+  db.prepare('INSERT INTO historial_solicitudes (solicitud_id, accion, detalle, usuario, creado_en) VALUES (?, ?, ?, ?, ?)')
+    .run(solicitudId, accion, detalle, usuario, new Date().toISOString())
+}
 
 const SOLICITUD_SELECT = `
   SELECT s.*, c.nombre AS candidato_nombre, u.nombre AS responsable_nombre
@@ -36,13 +43,10 @@ router.get('/:id', (req, res) => {
   const evaluacion = db
     .prepare('SELECT * FROM evaluaciones WHERE solicitud_id = ?')
     .get(req.params.id)
-  const documentos = db
-    .prepare('SELECT id, tipo, nombre, creado_en FROM documentos WHERE solicitud_id = ? ORDER BY id')
-    .all(req.params.id)
-  res.json({ ...row, evaluacion: evaluacion || null, documentos })
+  res.json({ ...row, evaluacion: evaluacion || null })
 })
 
-router.post('/', (req, res) => {
+router.post('/', requireRole('Administrador','Analista','Jefatura'), (req, res) => {
   const { candidatoId, cargo, familiaCargo, fechaSolicitud, estado, responsableId, observaciones } = req.body || {}
   if (!candidatoId || !cargo || !familiaCargo) {
     return res.status(400).json({ error: 'Candidato, cargo y familia de cargo son obligatorios' })
@@ -67,24 +71,61 @@ router.post('/', (req, res) => {
       observaciones || '',
       creadoEn
     )
+  notify(responsableId,'Nueva evaluación asignada',`Solicitud #${info.lastInsertRowid}: ${cargo}`,`/solicitudes/${info.lastInsertRowid}`)
+  audit(req,'Solicitud creada',String(info.lastInsertRowid))
+  registrarHistorial(info.lastInsertRowid, 'Solicitud creada', `Estado inicial: ${estado || 'Pendiente'}`)
   const row = db.prepare(`${SOLICITUD_SELECT} WHERE s.id = ?`).get(info.lastInsertRowid)
   res.status(201).json(row)
 })
 
-router.put('/:id', (req, res) => {
+router.put('/:id', requireRole('Administrador','Analista','Jefatura','Evaluador'), (req, res) => {
   const existing = db.prepare('SELECT * FROM solicitudes WHERE id = ?').get(req.params.id)
   if (!existing) return res.status(404).json({ error: 'Solicitud no encontrada' })
+  if (req.user.rol === 'Evaluador' && existing.responsable_id !== req.user.id) return res.status(403).json({error:'Esta solicitud no está asignada a tu cuenta'})
   const { estado, responsableId, observaciones } = req.body || {}
+  const nuevoEstado = estado ?? existing.estado
+  const nuevoResponsable = responsableId ?? existing.responsable_id
+  const nuevasObservaciones = observaciones ?? existing.observaciones
   db.prepare(
     'UPDATE solicitudes SET estado = ?, responsable_id = ?, observaciones = ? WHERE id = ?'
   ).run(
-    estado ?? existing.estado,
-    responsableId ?? existing.responsable_id,
-    observaciones ?? existing.observaciones,
+    nuevoEstado,
+    nuevoResponsable,
+    nuevasObservaciones,
     req.params.id
   )
+  if (nuevoEstado !== existing.estado) { notify(nuevoResponsable,'Estado de solicitud actualizado',`Solicitud #${req.params.id}: ${nuevoEstado}`,`/solicitudes/${req.params.id}`); audit(req,'Estado cambiado',`${req.params.id}: ${nuevoEstado}`) }
+  if (nuevoEstado !== existing.estado) registrarHistorial(req.params.id, 'Cambio de estado', `${existing.estado} → ${nuevoEstado}`)
+  if (nuevasObservaciones !== existing.observaciones) registrarHistorial(req.params.id, 'Observaciones actualizadas', nuevasObservaciones || 'Sin observaciones')
+  if (nuevoResponsable !== existing.responsable_id) notify(nuevoResponsable,'Evaluación asignada',`Solicitud #${req.params.id}`,`/solicitudes/${req.params.id}`)
+  if (nuevoResponsable !== existing.responsable_id) registrarHistorial(req.params.id, 'Responsable actualizado', `ID responsable: ${nuevoResponsable ?? 'Sin asignar'}`)
   const row = db.prepare(`${SOLICITUD_SELECT} WHERE s.id = ?`).get(req.params.id)
   res.json(row)
+})
+
+router.patch('/:id/estado', requireRole('Administrador','Analista','Jefatura','Evaluador'), (req,res)=>{
+ const estado=req.body?.estado
+ if(!['Pendiente','En proceso','Finalizada'].includes(estado))return res.status(400).json({error:'Estado inválido'})
+ const existing=db.prepare('SELECT * FROM solicitudes WHERE id=?').get(req.params.id)
+ if(!existing)return res.status(404).json({error:'Solicitud no encontrada'})
+ if(req.user.rol==='Evaluador'&&existing.responsable_id!==req.user.id)return res.status(403).json({error:'Solicitud no asignada a tu cuenta'})
+ if(estado==='Finalizada'){
+  const evaluation=db.prepare('SELECT id,resultado,fecha_evaluacion,borrador FROM evaluaciones WHERE solicitud_id=?').get(existing.id)
+  if(!evaluation||evaluation.borrador!==0||!evaluation.resultado||!evaluation.fecha_evaluacion)return res.status(409).json({error:'Finaliza primero la evaluación con resultado y fecha antes de cerrar la solicitud'})
+ }
+ if(estado!==existing.estado){
+  db.prepare('UPDATE solicitudes SET estado=? WHERE id=?').run(estado,existing.id)
+  registrarHistorial(existing.id,'Cambio de estado',`${existing.estado} → ${estado}`,req.user.nombre)
+  audit(req,'Estado cambiado',`${existing.id}: ${existing.estado} → ${estado}`)
+  notify(existing.responsable_id,'Estado actualizado',`Solicitud #${existing.id}: ${estado}`,`/solicitudes/${existing.id}`)
+ }
+ res.json(db.prepare(`${SOLICITUD_SELECT} WHERE s.id=?`).get(existing.id))
+})
+
+router.get('/:id/historial', (req, res) => {
+  const solicitud = db.prepare('SELECT id FROM solicitudes WHERE id = ?').get(req.params.id)
+  if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' })
+  res.json(db.prepare('SELECT * FROM historial_solicitudes WHERE solicitud_id = ? ORDER BY id DESC').all(req.params.id))
 })
 
 router.get('/:id/evaluacion', (req, res) => {
@@ -96,10 +137,12 @@ router.get('/:id/evaluacion', (req, res) => {
   res.json(evaluacion || null)
 })
 
-router.post('/:id/evaluacion', (req, res) => {
-  const solicitud = db.prepare('SELECT id FROM solicitudes WHERE id = ?').get(req.params.id)
+router.post('/:id/evaluacion', requireRole('Administrador','Jefatura','Evaluador'), (req, res) => {
+  const solicitud = db.prepare('SELECT id,responsable_id FROM solicitudes WHERE id = ?').get(req.params.id)
   if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' })
-  const { fechaEvaluacion, resultado, observaciones, estado } = req.body || {}
+  const { fechaEvaluacion, resultado, observaciones, estado, competencias, recomendaciones, borrador } = req.body || {}
+  if (!['Administrador','Jefatura'].includes(req.user.rol) && solicitud.responsable_id !== req.user.id) return res.status(403).json({error:'Solo el evaluador asignado puede modificar esta evaluación'})
+  if (borrador === false && (!resultado || !fechaEvaluacion)) return res.status(400).json({error:'Para finalizar, registra fecha y resultado'})
   const creadoEn = new Date().toISOString()
 
   const existing = db
@@ -129,9 +172,10 @@ router.post('/:id/evaluacion', (req, res) => {
     )
   }
 
-  const evaluacion = db
-    .prepare('SELECT * FROM evaluaciones WHERE solicitud_id = ?')
-    .get(req.params.id)
+  db.prepare('UPDATE evaluaciones SET competencias=?,recomendaciones=?,borrador=? WHERE solicitud_id=?').run(JSON.stringify(competencias||{}),String(recomendaciones||''),borrador===false?0:1,req.params.id)
+  if (borrador===false && estado==='Finalizada') { db.prepare("UPDATE solicitudes SET estado='Finalizada' WHERE id=?").run(req.params.id); registrarHistorial(req.params.id,'Evaluación finalizada',resultado,req.user.nombre); notify(solicitud.responsable_id,'Evaluación finalizada',`Solicitud #${req.params.id}`,`/solicitudes/${req.params.id}`) }
+  audit(req,'Evaluación guardada',`Solicitud ${req.params.id}, borrador=${borrador!==false}`)
+  const evaluacion = db.prepare('SELECT * FROM evaluaciones WHERE solicitud_id = ?').get(req.params.id)
   res.status(201).json(evaluacion)
 })
 
