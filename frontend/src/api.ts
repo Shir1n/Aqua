@@ -53,6 +53,8 @@ export const api = {
   getEstadisticas: () => request<Estadisticas>('/api/extra/estadisticas'),
   adminUsuarios: () => request<UsuarioAdmin[]>('/api/extra/usuarios'),
   adminActualizar: (id:number,body:{rol?:string;activo?:boolean}) => request<{mensaje:string}>(`/api/extra/usuarios/${id}`,{method:'PATCH',body:JSON.stringify(body)}),
+  adminCrearUsuario: (body:{nombre:string;correo:string;rol:string;contrasena:string}) => request<{id:number;mensaje:string}>('/api/extra/usuarios',{method:'POST',body:JSON.stringify(body)}),
+  adminRestablecerClave: (id:number,contrasena:string) => request<{mensaje:string}>(`/api/extra/usuarios/${id}/clave`,{method:'PUT',body:JSON.stringify({contrasena})}),
   adminAuditoria: () => request<Auditoria[]>('/api/extra/auditoria'),
   getUsuarios: () => request<Usuario[]>('/api/auth/usuarios'),
   login: (correo: string, contrasena = '') =>

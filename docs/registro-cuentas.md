@@ -5,5 +5,7 @@
 - El registro público solo permite `Analista` o `Evaluador`; los roles elevados los asigna un administrador.
 - Las cuentas de ejemplo `admin@aqua.test`, `camila@aqua.test`, `maria.victoria@aqua.test` y `jefatura@aqua.test` **no tienen una contraseña universal en el código**.
 - Las contraseñas son hashes en `backend/data/aqua.db` y no se pueden recuperar en texto claro.
-- Si se instala desde cero, el seed crea usuarios sin `password_hash`; hay que establecer contraseñas con un procedimiento autorizado.
+- Al iniciar el backend, toda cuenta sin contraseña (por ejemplo, las del seed en una instalación nueva) recibe una contraseña aleatoria. Se muestra una sola vez en la consola del backend y se guarda en `backend/data/credenciales-iniciales.txt` (ignorado por git). Cámbiala tras el primer ingreso desde el perfil.
+- El administrador puede, en **Administración de usuarios** (`/usuarios`), crear usuarios con contraseña (sin SMTP) y restablecer la contraseña de cualquier otro usuario (mínimo 12 caracteres; se cierran sus sesiones).
+- Alternativa por consola: `node backend/scripts/establecer-clave.js correo@dominio.cl`.
 - Ver `SOLUCION_DE_PROBLEMAS.md` para diagnóstico.
