@@ -662,3 +662,41 @@
 :root[data-theme="dark"] .dashboard-info-metrics>div{background:#18232d;border-color:#2c3b47}
 :root[data-theme="dark"] .dashboard-info-metrics strong{color:#cfe4ee}
 :root[data-theme="dark"] .dashboard-info-metrics span{color:#7f8d99}
+
+
+/* SIGMA-Aqua: compactación real del Dashboard (carga después del tema global) */
+@media (min-width: 768px) {
+  .dashboard-page { gap: 12px; }
+  .dashboard-hero { gap: 14px; padding: 0 2px; align-items: center; }
+  .dashboard-hero h1 { font-size: 1.72rem; line-height: 1.16; margin: 3px 0; }
+  .dashboard-hero p { font-size: .80rem; }
+  .dashboard-eyebrow,.dashboard-section-label { font-size: .65rem; }
+  .dashboard-system-status { padding: 7px 11px; }
+  .dashboard-quick-actions { margin: 0 0 2px; }
+  .dashboard-stat-grid { gap: 10px; }
+  .dashboard-stat-card { min-height: 86px; padding: 11px 13px; gap: 10px; }
+  .dashboard-stat-icon { width: 36px; height: 36px; font-size: 1rem; border-radius: 9px; }
+  .dashboard-stat-content span { font-size: .72rem; }
+  .dashboard-stat-content strong { font-size: 1.5rem; margin: 1px 0; }
+  .dashboard-stat-content small { font-size: .62rem; }
+  .dashboard-grid { gap: 12px; }
+  .dashboard-panel { padding: 16px; }
+  .dashboard-panel-header { margin-bottom: 12px; }
+  .dashboard-panel-header h2 { font-size: 1.02rem; }
+  .dashboard-chart { height: 175px; }
+}
+@media (min-width: 768px) and (max-width: 1100px) {
+  .dashboard-stat-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+}
+/* Corrección de contraste: evitar texto gris sobre tarjetas de color */
+.dashboard-stat-card.blue .dashboard-stat-content span,
+.dashboard-stat-card.slate .dashboard-stat-content span,
+.dashboard-stat-card.amber .dashboard-stat-content span,
+.dashboard-stat-card.cyan .dashboard-stat-content span,
+.dashboard-stat-card.green .dashboard-stat-content span,
+.dashboard-stat-card.blue .dashboard-stat-content small,
+.dashboard-stat-card.slate .dashboard-stat-content small,
+.dashboard-stat-card.amber .dashboard-stat-content small,
+.dashboard-stat-card.cyan .dashboard-stat-content small,
+.dashboard-stat-card.green .dashboard-stat-content small { color: #fff; opacity: .94; }
+.dashboard-stat-card .dashboard-stat-content strong { color: #fff; }

@@ -1,0 +1,28 @@
+/* SIGMA-Aqua 4.5 - estilos exclusivos del sidebar */
+.app-sidebar{background:linear-gradient(160deg,#10334d,#0c2c45 65%,#09253a);border-right:1px solid rgba(137,203,227,.16)}
+.app-sidebar .sidebar-top{padding-bottom:24px}
+.app-sidebar .sidebar-brand{gap:12px;min-width:0}
+.app-sidebar .sidebar-brand-mark.s45-logo{width:70px;height:55px;flex:0 0 70px;padding:7px;display:grid;place-items:center;background:#fff;border:1px solid #e4edf2;border-radius:13px;box-shadow:0 6px 20px rgba(0,0,0,.14);overflow:hidden}
+.app-sidebar .s45-logo img{display:block;width:100%;height:100%;object-fit:contain}
+.app-sidebar .sidebar-brand strong{font-size:1rem;line-height:1.2;letter-spacing:-.015em}
+.app-sidebar .sidebar-brand small{font-size:.69rem;white-space:nowrap;color:#b2ccda}
+.app-sidebar .sidebar-section-title{letter-spacing:.16em;color:#8aadc2}
+.app-sidebar .sidebar-nav{gap:6px}
+.app-sidebar .side-nav-link{min-height:48px;border-radius:12px;gap:13px;transition:background-color .18s,color .18s,transform .18s,box-shadow .18s}
+.app-sidebar .side-nav-link svg{width:21px;height:21px;transition:transform .18s}
+.app-sidebar .side-nav-link:hover{background:rgba(95,194,226,.13);color:#fff;transform:translateX(2px)}
+.app-sidebar .side-nav-link:hover svg{transform:scale(1.07)}
+.app-sidebar .side-nav-link.active{color:#fff;background:linear-gradient(90deg,rgba(48,153,194,.35),rgba(38,125,163,.18));box-shadow:inset 4px 0 0 #5bcee9,0 6px 15px rgba(0,0,0,.07)}
+.app-sidebar .sidebar-user.s45-user{padding:12px 11px;border-radius:13px;background:rgba(255,255,255,.055);border:1px solid rgba(194,226,239,.12)}
+.app-sidebar .sidebar-user.s45-user .sidebar-avatar{background:#dff3fa;color:#164a63}
+.app-sidebar .sidebar-user-text strong{font-size:.79rem}
+.app-sidebar .sidebar-user-text span{color:#b0cad8}
+.app-sidebar.collapsed .sidebar-brand-mark.s45-logo{width:48px;height:48px;flex-basis:48px;padding:5px;border-radius:12px}
+.app-sidebar.collapsed .sidebar-brand{justify-content:center}
+.app-sidebar.collapsed .sidebar-user.s45-user{padding:8px 0;border-color:transparent;background:transparent}
+.app-sidebar.collapsed .side-nav-link:hover{transform:none}
+:root[data-theme="dark"] .app-sidebar{background:linear-gradient(165deg,#102d43,#0a2235);border-right-color:rgba(137,203,227,.15)}
+:root[data-theme="dark"] .app-sidebar .side-nav-link.active{background:linear-gradient(90deg,rgba(48,153,194,.35),rgba(38,125,163,.18));color:#fff}
+:root[data-theme="dark"] .app-sidebar .side-nav-link:hover{background:rgba(95,194,226,.13);color:#fff}
+@media(max-width:768px){.app-sidebar .side-nav-link:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){.app-sidebar .side-nav-link,.app-sidebar .side-nav-link svg{transition:none}}

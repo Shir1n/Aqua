@@ -1,0 +1,26 @@
+.register-page { min-height:100vh; background:#344451; }
+.register-image { position:relative; overflow:hidden; min-height:100vh; }
+.register-image > img:first-child { width:100%; height:100%; position:absolute; inset:0; object-fit:cover; }
+.register-image-overlay { position:absolute; inset:0; background:linear-gradient(180deg,rgba(6,24,40,.45),rgba(6,24,40,.28)); }
+.register-brand { position:absolute; top:32px; left:32px; width:min(260px,32%); filter:brightness(0) invert(1) drop-shadow(0 2px 8px rgba(0,0,0,.45)); }
+.register-panel { display:flex; align-items:center; justify-content:center; padding:32px; background:#344451; }
+.register-card { width:min(500px,100%); max-height:calc(100vh - 48px); overflow-y:auto; padding:34px 40px; background:#fff; border-radius:10px; box-shadow:0 22px 50px rgba(0,0,0,.28); color:#344451; }
+.register-card h1 { margin:0; text-align:center; font-family:Calibri,sans-serif; font-size:32px; font-weight:800; }
+.register-subtitle { margin:6px 0 22px; text-align:center; color:#536575; }
+.register-card form label { display:block; margin:15px 0 6px; color:#344451; font-size:15px; font-weight:600; }
+.register-card form input,.register-card form select { width:100%; min-height:42px; padding:9px 12px; border:1px solid #d1d5db; border-radius:9px; background:#f8fafc; color:#1a2530; font:inherit; outline:none; }
+.register-card form input:focus,.register-card form select:focus { border-color:#344451; background:#fff; box-shadow:0 0 0 3px rgba(52,68,81,.16); }
+.register-submit { display:block; min-width:145px; margin:24px auto 0; padding:12px 24px; border:0; border-radius:6px; background:#344451; color:#fff; font-weight:700; cursor:pointer; }
+.register-submit:disabled,.register-resend:disabled { opacity:.6; cursor:wait; }
+.register-footer { margin:20px 0 0; text-align:center; color:#536575; font-size:14px; }
+.register-footer a,.register-resend { color:#344451; text-decoration:underline; }
+.register-resend { display:block; margin:14px auto 0; padding:6px 10px; border:0; background:transparent; cursor:pointer; }
+.register-code { text-align:center; letter-spacing:10px; font-size:24px!important; font-weight:700; }
+.register-alert { margin:14px 0 0; padding:10px 12px; border-radius:7px; text-align:center; font-size:13px; }
+.register-error { color:#991b1b; background:#fee2e2; }
+.register-success { color:#166534; background:#dcfce7; }
+@media(max-width:760px) { .register-page { display:block!important; } .register-image { display:none; } .register-panel { min-height:100vh; padding:20px; } .register-card { padding:28px 24px; max-height:calc(100vh - 40px); } }
+
+/* Ayuda contextual sobre permisos en el registro */
+.register-role-hint { margin: 6px 0 12px; color: #63798a; font-size: .79rem; line-height: 1.5; }
+[data-theme='dark'] .register-role-hint { color: #b6cbd7; }

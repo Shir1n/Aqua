@@ -75,10 +75,7 @@ export default function App() {
         if (descFile) data.append('descriptor', descFile)
 
         const res = await fetch(FLOW_URL, { method: 'POST', body: data })
-        if (!res.ok) {
-          const body = await res.json().catch(() => null)
-          throw new Error(body?.error || `El flujo respondió con estado ${res.status}.`)
-        }
+        if (!res.ok) throw new Error(`El flujo respondió con estado ${res.status}.`)
       } else {
         await new Promise((r) => setTimeout(r, 600))
       }

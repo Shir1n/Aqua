@@ -1,0 +1,164 @@
+
+/* SIGMA Aqua — experiencia de gestión refinada */
+:root {
+  --app-background:#f4f7fb; --app-surface:#fff; --app-text:#183049;
+  --app-muted:#708397; --app-border:#e1e9f1;
+}
+body {font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:-.012em}
+.app-main {background:var(--app-background)}
+.app-container {width:min(1440px,calc(100% - 80px));padding:34px 0 70px}
+
+
+
+
+
+
+
+
+
+
+.app-topbar {background:rgba(255,255,255,.94);backdrop-filter:blur(16px);border-bottom:1px solid var(--app-border);height:72px;padding:0 36px}
+.topbar-breadcrumb {font-weight:650;color:#314d63}
+.topbar-breadcrumb b {color:#9db0bd;padding:0 12px}
+.topbar-actions {gap:18px}
+.topbar-user {padding-left:18px;border-left:1px solid var(--app-border)}
+.theme-toggle {border-radius:12px}
+.dashboard-quick-actions {display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 18px}
+.dashboard-action-primary,.dashboard-action-secondary,.dashboard-action-text {display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:42px;padding:0 17px;border-radius:11px;font-size:.84rem;font-weight:700;text-decoration:none;transition:transform .18s,background .18s}
+.dashboard-action-primary {background:#117caa;color:#fff;box-shadow:0 7px 17px rgba(17,124,170,.15)}
+.dashboard-action-primary:hover {background:#096b96;color:white;transform:translateY(-1px)}
+.dashboard-action-secondary {border:1px solid var(--app-border);background:var(--app-surface);color:var(--app-text)}
+.dashboard-action-secondary:hover {color:#138cb5;border-color:#72bcd1}
+.dashboard-action-text {color:#147da5;margin-left:auto}
+.dashboard-action-text:hover {color:#0a6489}
+.management-help-line {color:var(--app-muted);font-size:.79rem;margin-top:-6px}
+.management-page {gap:20px}
+.management-header {align-items:center;margin-bottom:2px}
+.management-header h1,.dashboard-hero h1 {font-size:clamp(1.75rem,2.3vw,2.35rem);letter-spacing:-.045em}
+.management-header p,.dashboard-hero p {font-size:.9rem;line-height:1.6;max-width:650px}
+.management-eyebrow,.dashboard-eyebrow {letter-spacing:.12em}
+.management-primary-btn {min-height:44px;padding:0 18px;border-radius:11px;background:#117caa;box-shadow:0 7px 17px rgba(17,124,170,.12);font-size:.85rem}
+.management-primary-btn:hover {background:#096b96}
+.management-stat {border-radius:15px;min-height:95px;padding:18px;box-shadow:0 3px 16px rgba(18,54,82,.025)}
+.management-stat-icon {width:43px;height:43px;border-radius:12px}
+.management-stat small {font-size:.76rem}
+.management-stat strong {font-size:1.45rem;letter-spacing:-.03em}
+.management-panel {border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(21,49,74,.035)}
+.management-toolbar {padding:18px 20px;gap:14px}
+.management-search {border-radius:11px}
+.management-search input {min-height:44px;font-size:.84rem}
+.management-table {font-size:.83rem}
+.management-table thead th {font-size:.69rem;letter-spacing:.055em}
+.management-table tbody td {padding-top:16px;padding-bottom:16px}
+.management-table tbody tr {transition:background .15s}
+.management-table tbody tr:hover {background:rgba(29,147,181,.045)}
+.row-action {min-height:36px;border-radius:9px}
+.management-empty {padding:45px 20px!important}
+.dashboard-stat-card {border-radius:16px!important;box-shadow:0 8px 20px rgba(16,50,73,.05)!important}
+.dashboard-panel {border-radius:18px!important;box-shadow:0 8px 24px rgba(16,50,73,.035)!important}
+.dashboard-hero {align-items:center}
+.dashboard-chart-bar {border-radius:9px 9px 3px 3px}
+.page-header {margin-bottom:24px}
+.page-header h1 {font-size:1.9rem;color:var(--app-text)}
+.card {border-radius:16px;box-shadow:0 7px 24px rgba(18,50,72,.035)!important}
+.card-header {padding:18px 22px;font-weight:700}
+.card-body {padding:24px}
+.form-label {font-weight:650;font-size:.84rem;margin-bottom:8px}
+.form-control,.form-select {min-height:44px;border-radius:10px}
+.btn {border-radius:10px;font-weight:650;padding:10px 16px}
+.btn-primary {background:#117caa;border-color:#117caa}
+.btn-primary:hover {background:#096b96;border-color:#096b96}
+:where(a,button,input,select,textarea):focus-visible {outline:3px solid #53bad6!important;outline-offset:2px}
+:root[data-theme="dark"] {
+  --app-background:#0d1822;--app-surface:#142432;--app-text:#e9f2f8;
+  --app-muted:#9aafc0;--app-border:#294050;
+}
+:root[data-theme="dark"] body,:root[data-theme="dark"] .app-content,:root[data-theme="dark"] .app-main {background:#0d1822;color:#e9f2f8}
+:root[data-theme="dark"] 
+:root[data-theme="dark"] .sidebar-nav 
+:root[data-theme="dark"] .sidebar-nav 
+:root[data-theme="dark"] .app-topbar {background:rgba(16,31,43,.96);border-color:#294050}
+:root[data-theme="dark"] .topbar-breadcrumb {color:#d4e5f0}
+:root[data-theme="dark"] .dashboard-action-secondary {background:#172b39;color:#e3f1f8;border-color:#355063}
+:root[data-theme="dark"] .dashboard-action-secondary:hover {border-color:#5ba9c5}
+:root[data-theme="dark"] .dashboard-action-text {color:#79d0ec}
+:root[data-theme="dark"] .management-help-line {color:#9aafc0}
+:root[data-theme="dark"] .card,:root[data-theme="dark"] .management-panel,:root[data-theme="dark"] .dashboard-panel {background:#142432;color:#e8f2f8;border-color:#294050}
+:root[data-theme="dark"] .management-table tbody tr:hover {background:#1a3344}
+:root[data-theme="dark"] .page-header h1 {color:#e9f2f8}
+:root[data-theme="dark"] .form-control,:root[data-theme="dark"] .form-select {background:#10202c;color:#e9f2f8;border-color:#355063}
+:root[data-theme="dark"] .card-header {background:#192d3c;border-color:#294050}
+@media(max-width:900px){
+  .app-container {width:calc(100% - 36px);padding:24px 0 48px}
+  .app-topbar {padding:0 18px}
+  .app-sidebar 
+  .dashboard-action-text {margin-left:0}
+}
+@media(max-width:640px){
+  .management-header {align-items:stretch;flex-direction:column}
+  .management-primary-btn {align-self:flex-start}
+  .dashboard-quick-actions {align-items:stretch}
+  .dashboard-action-primary,.dashboard-action-secondary {flex:1 1 100%}
+  .dashboard-action-text {flex:1 1 100%;justify-content:flex-start}
+  .topbar-breadcrumb {font-size:.75rem}
+  .topbar-user {padding-left:10px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after {scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important}
+}
+
+/* Indicadores sobrios: el color identifica, no compite con la información */
+.dashboard-stat-card.blue,.dashboard-stat-card.slate,.dashboard-stat-card.amber,.dashboard-stat-card.cyan,.dashboard-stat-card.green {
+  background:var(--app-surface);color:var(--app-text);border:1px solid var(--app-border);
+}
+.dashboard-stat-card::after {display:none}
+.dashboard-stat-card .dashboard-stat-icon {background:#e9f3f8;color:#127aa3}
+.dashboard-stat-card.slate .dashboard-stat-icon {background:#edf1f6;color:#60738a}
+.dashboard-stat-card.amber .dashboard-stat-icon {background:#fff2d7;color:#bd8111}
+.dashboard-stat-card.cyan .dashboard-stat-icon {background:#e0f6f9;color:#1593aa}
+.dashboard-stat-card.green .dashboard-stat-icon {background:#e2f6eb;color:#168a5d}
+.dashboard-stat-content strong {font-size:1.9rem;line-height:1.2}
+.dashboard-stat-content span {color:var(--app-muted)}
+.dashboard-stat-content small {color:var(--app-muted);opacity:1}
+:root[data-theme="dark"] .dashboard-stat-card.blue,
+:root[data-theme="dark"] .dashboard-stat-card.slate,
+:root[data-theme="dark"] .dashboard-stat-card.amber,
+:root[data-theme="dark"] .dashboard-stat-card.cyan,
+:root[data-theme="dark"] .dashboard-stat-card.green {
+ background:#142432;color:#e9f2f8;border-color:#294050;
+}
+:root[data-theme="dark"] .dashboard-stat-card .dashboard-stat-icon {background:#203f51;color:#80cce7}
+:root[data-theme="dark"] .dashboard-stat-card.amber .dashboard-stat-icon {background:#3b3320;color:#f0c36a}
+:root[data-theme="dark"] .dashboard-stat-card.green .dashboard-stat-icon {background:#1c4038;color:#79d6ab}
+:root[data-theme="dark"] .dashboard-stat-content span,
+:root[data-theme="dark"] .dashboard-stat-content small {color:#9bb0c0}
+
+
+/* Ajuste compacto: más espacio visible, sin alterar navegación ni lógica */
+@media (min-width: 768px) {
+  .app-container { padding-top: 24px; padding-bottom: 44px; }
+  .app-topbar { height: 62px; }
+  .dashboard-hero { margin-bottom: 18px; }
+  .dashboard-hero h1 { font-size: clamp(1.65rem, 2vw, 2rem); line-height: 1.15; }
+  .dashboard-hero p { font-size: .85rem; }
+  .dashboard-quick-actions { margin-bottom: 12px; gap: 8px; }
+  .dashboard-action-primary,.dashboard-action-secondary,.dashboard-action-text {
+    min-height: 36px; padding: 0 13px; font-size: .78rem; border-radius: 9px;
+  }
+  .dashboard-stat-grid { gap: 12px; margin-bottom: 16px; }
+  .dashboard-stat-card { min-height: 112px; padding: 17px; border-radius: 13px!important; }
+  .dashboard-stat-content strong { font-size: 1.65rem; }
+  .dashboard-stat-content span,.dashboard-stat-content small { font-size: .75rem; }
+  .dashboard-stat-icon { width: 44px; height: 44px; }
+  .dashboard-panels { gap: 14px; }
+  .dashboard-panel { padding: 20px; border-radius: 14px!important; }
+  .dashboard-panel h2 { font-size: 1.05rem; }
+  .management-header h1 { font-size: 1.9rem; }
+  .management-header p { font-size: .83rem; }
+  .management-stats { gap: 12px; }
+  .management-stat { min-height: 82px; padding: 13px; }
+  .management-stat strong { font-size: 1.25rem; }
+  .management-toolbar { padding: 13px 16px; }
+  .management-table tbody td { padding-top: 12px; padding-bottom: 12px; }
+  .page-header h1 { font-size: 1.7rem; }
+}

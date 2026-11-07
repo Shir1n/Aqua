@@ -1,0 +1,8 @@
+/* SIGMA-Aqua 4.5.3 — botón Volver en la cabecera de todos los módulos */
+.sigma-global-back{display:inline-flex;align-items:center;justify-content:center;flex:0 0 40px;width:40px;height:40px;margin-right:10px;border:1px solid #d9e5ee;border-radius:12px;background:transparent;color:#25425c;cursor:pointer;transition:background .18s ease,transform .18s ease,border-color .18s ease;}
+.sigma-global-back:hover{background:rgba(10,138,183,.1);border-color:#9ccde0;transform:translateX(-2px);}
+.sigma-global-back:focus-visible{outline:3px solid #39a9d3;outline-offset:2px;}
+:root[data-theme="dark"] .sigma-global-back{color:#e4f2fc;border-color:#385367;}
+:root[data-theme="dark"] .sigma-global-back:hover{background:rgba(92,190,220,.15);}
+@media(max-width:600px){.sigma-global-back{flex-basis:36px;width:36px;height:36px;margin-right:6px;}}
+@media(prefers-reduced-motion:reduce){.sigma-global-back{transition:none;}}

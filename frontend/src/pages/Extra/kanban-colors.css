@@ -1,0 +1,32 @@
+/* SIGMA-Aqua 4.5.4 — solo tablero Kanban */
+.s454-board {gap:20px;align-items:start}
+.s454-column {--k-accent:#d78a17;--k-accent-rgb:215,138,23;--k-surface:#fff5e7;--k-border:#efd2a3;--k-ink:#8b570f;background:var(--k-surface);border-color:var(--k-border);border-top:5px solid var(--k-accent);border-radius:20px;min-height:360px;transition:background .2s ease,border-color .2s ease,box-shadow .2s ease,transform .2s ease}
+.s454-progress {--k-accent:#168ac9;--k-accent-rgb:22,138,201;--k-surface:#eaf5ff;--k-border:#b7dcf5;--k-ink:#176b9f}
+.s454-done {--k-accent:#1caa66;--k-accent-rgb:28,170,102;--k-surface:#e9f9ef;--k-border:#b4e5c9;--k-ink:#19784a}
+.s454-column h2 {color:var(--k-ink);gap:12px;font-weight:800}
+.s454-column h2::before {content:'◷';color:var(--k-accent);font-size:23px;line-height:1}
+.s454-progress h2::before {content:'◉'}
+.s454-done h2::before {content:'✓'}
+.s454-column h2 span {margin-left:auto;background:rgba(var(--k-accent-rgb),.13);color:var(--k-ink);font-weight:800;border:1px solid rgba(var(--k-accent-rgb),.2)}
+.s454-ticket {position:relative;border-color:var(--k-border);border-left:4px solid var(--k-accent);background:#fff;box-shadow:0 4px 13px rgba(20,52,74,.07);transition:transform .18s ease,box-shadow .18s ease,opacity .18s ease,border-color .18s ease}
+.s454-ticket:hover {transform:translateY(-4px);box-shadow:0 13px 27px rgba(19,54,78,.16);border-color:rgba(var(--k-accent-rgb),.55)}
+.s454-ticket a {color:#17364d}
+.s454-ticket a:hover {color:var(--k-ink);text-decoration:underline}
+.s454-ticket small {display:inline-block;background:rgba(var(--k-accent-rgb),.09);color:var(--k-ink);padding:5px 9px;border-radius:8px;font-weight:600}
+.s454-ticket label {color:#496175;font-weight:600}
+.s454-ticket select {background:#fff;border-color:#cbdde9;color:#17364d;cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease}
+.s454-ticket select:hover,.s454-ticket select:focus-visible {border-color:var(--k-accent);box-shadow:0 0 0 3px rgba(var(--k-accent-rgb),.12);outline:none}
+.s454-ticket.s454-dragging {opacity:.44;transform:scale(.98);box-shadow:none}
+.s454-column.s454-drop-target {background:rgba(var(--k-accent-rgb),.19);border-color:var(--k-accent);box-shadow:0 0 0 3px rgba(var(--k-accent-rgb),.2),0 12px 24px rgba(20,52,74,.08);transform:translateY(-2px)}
+.s454-column .s43-empty {border-color:rgba(var(--k-accent-rgb),.45);color:var(--k-ink)}
+:root[data-theme="dark"] .s454-column {--k-surface:#342b21;--k-border:#6c4c27;--k-ink:#ffd38b;background:var(--k-surface);border-color:var(--k-border);border-top-color:var(--k-accent)}
+:root[data-theme="dark"] .s454-progress {--k-surface:#172f43;--k-border:#305a78;--k-ink:#8ed3ff}
+:root[data-theme="dark"] .s454-done {--k-surface:#17382e;--k-border:#2d6950;--k-ink:#8ce6b2}
+:root[data-theme="dark"] .s454-ticket {background:#182b3b;border-color:var(--k-border);border-left-color:var(--k-accent);color:#e8f2fa}
+:root[data-theme="dark"] .s454-ticket a {color:#eef7ff}
+:root[data-theme="dark"] .s454-ticket small {background:rgba(var(--k-accent-rgb),.17);color:var(--k-ink)}
+:root[data-theme="dark"] .s454-ticket label {color:#c3d5e2}
+:root[data-theme="dark"] .s454-ticket select {background:#142738;color:#e8f2fa;border-color:#456479}
+:root[data-theme="dark"] .s454-column.s454-drop-target {background:rgba(var(--k-accent-rgb),.24);border-color:var(--k-accent)}
+@media(max-width:900px){.s454-board{gap:16px}}
+@media(prefers-reduced-motion:reduce){.s454-column,.s454-ticket,.s454-ticket select{transition:none}.s454-ticket:hover,.s454-column.s454-drop-target{transform:none}}

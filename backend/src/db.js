@@ -21,8 +21,12 @@ export function initDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nombre TEXT NOT NULL,
       correo TEXT NOT NULL UNIQUE,
-      rol TEXT NOT NULL CHECK (rol IN ('Administrador','Analista','Evaluador','Jefatura'))
+      rol TEXT NOT NULL CHECK (rol IN ('Administrador','Analista','Evaluador','Jefatura')),
+      password_hash TEXT,
+      verificado INTEGER NOT NULL DEFAULT 1
     );
+
+    CREATE TABLE IF NOT EXISTS codigos_verificacion (correo TEXT PRIMARY KEY, codigo TEXT NOT NULL, vence_en TEXT NOT NULL, nombre TEXT NOT NULL, password_hash TEXT NOT NULL, rol TEXT NOT NULL);
 
     CREATE TABLE IF NOT EXISTS candidatos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,6 +50,15 @@ export function initDb() {
       creado_en TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS historial_solicitudes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      solicitud_id INTEGER NOT NULL REFERENCES solicitudes(id) ON DELETE CASCADE,
+      accion TEXT NOT NULL,
+      detalle TEXT NOT NULL DEFAULT '',
+      usuario TEXT NOT NULL DEFAULT 'Sistema',
+      creado_en TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS evaluaciones (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       solicitud_id INTEGER NOT NULL UNIQUE REFERENCES solicitudes(id) ON DELETE CASCADE,
@@ -55,40 +68,18 @@ export function initDb() {
       estado TEXT NOT NULL CHECK (estado IN ('Pendiente','En proceso','Finalizada')),
       creado_en TEXT NOT NULL
     );
-
-    CREATE TABLE IF NOT EXISTS documentos (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      solicitud_id INTEGER NOT NULL REFERENCES solicitudes(id) ON DELETE CASCADE,
-      tipo TEXT NOT NULL CHECK (tipo IN ('cv','descriptor','informe','pauta','formulario')),
-      nombre TEXT NOT NULL,
-      ruta TEXT NOT NULL,
-      creado_en TEXT NOT NULL
-    );
   `)
 
-  migrarSolicitudes()
+  for (const [col, ddl] of [['password_hash','ALTER TABLE usuarios ADD COLUMN password_hash TEXT'], ['verificado','ALTER TABLE usuarios ADD COLUMN verificado INTEGER NOT NULL DEFAULT 1']]) { try { db.exec(ddl) } catch {} }
+  try { db.exec('ALTER TABLE usuarios ADD COLUMN activo INTEGER NOT NULL DEFAULT 1') } catch {}
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sesiones(token_hash TEXT PRIMARY KEY, usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE, vence_en TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS auditoria(id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER, accion TEXT NOT NULL, detalle TEXT, creado_en TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS notificaciones(id INTEGER PRIMARY KEY AUTOINCREMENT, usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE, titulo TEXT NOT NULL, descripcion TEXT NOT NULL, leida INTEGER NOT NULL DEFAULT 0, enlace TEXT, creado_en TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS agenda(id INTEGER PRIMARY KEY AUTOINCREMENT, solicitud_id INTEGER NOT NULL REFERENCES solicitudes(id) ON DELETE CASCADE, evaluador_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL, fecha TEXT NOT NULL, hora TEXT NOT NULL, notas TEXT NOT NULL DEFAULT '', creado_en TEXT NOT NULL);
+  `)
+  for (const [col, ddl] of [['competencias','ALTER TABLE evaluaciones ADD COLUMN competencias TEXT'], ['recomendaciones','ALTER TABLE evaluaciones ADD COLUMN recomendaciones TEXT'], ['borrador','ALTER TABLE evaluaciones ADD COLUMN borrador INTEGER NOT NULL DEFAULT 1']]) { try { db.exec(ddl) } catch {} }
   seed()
-}
-
-// Columnas agregadas después del esquema inicial: se añaden si la BD ya existía.
-const COLUMNAS_SOLICITUD = [
-  'carpeta',
-  'reclutador',
-  'origen',
-  'ubicacion',
-  'unidad',
-  'ceco',
-  'requiere_referencias',
-  'es_referido',
-]
-
-function migrarSolicitudes() {
-  const existentes = new Set(
-    db.prepare('PRAGMA table_info(solicitudes)').all().map((c) => c.name)
-  )
-  for (const col of COLUMNAS_SOLICITUD) {
-    if (!existentes.has(col)) db.exec(`ALTER TABLE solicitudes ADD COLUMN ${col} TEXT`)
-  }
 }
 
 function seed() {

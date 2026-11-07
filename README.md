@@ -1,34 +1,29 @@
-# Automatización del Proceso de Evaluación Psicolaboral
+# SIGMA-Aqua — proyecto consolidado (AquaV6)
 
-## Avances
+Proyecto React/Vite + Node/Express + SQLite. Esta entrega conserva la estructura funcional del ZIP AquaV6, eliminando `node_modules` y archivos generados para una distribución limpia.
 
-El proyecto parte de una plantilla base entregada por el docente. Sobre ese esqueleto, hasta ahora el equipo ha avanzado principalmente en el frontend.
+## Inicio rápido en Windows PowerShell
 
-El FrontEnd contiene:
+1. Instala Node.js LTS y comprueba `node -v` y `npm -v`.
+2. Abre PowerShell **en esta carpeta**.
+3. Ejecuta `npm ci --prefix frontend`, `npm ci --prefix backend` y `npm ci --prefix solicitud`.
+4. Configura `backend/.env` a partir de `backend/.env.example` para el correo.
+5. Ejecuta `powershell -ExecutionPolicy Bypass -File .\iniciar.ps1`.
+6. Abre la dirección local que imprima Vite (habitualmente `http://localhost:5173`; puede variar).
 
-- **Diseño visual del panel** con React y Bootstrap: menú lateral, topbar, modo oscuro y estilos de las pantallas (Dashboard, Candidatos, Solicitudes).
-- **Pantalla de Login** rediseñada visualmente desde cero (imagen de fondo, logo, campos de usuario/contraseña, mostrar contraseña, "recordarme", olvide contraseña, boton ingresar).
-- **Login funcional (hardcodeado):** Al presionar "Ingresar" se guarda un usuario fijo y se navega al Dashboard. Sin validacion por el momento.
+También puedes usar `make dev` si tienes `make` disponible; el Makefile instala dependencias en cada ejecución.
 
-### Tecnologías usadas
+## Estructura
 
-| Herramienta | Uso |
-|---|---|
-| **React 19** + **React DOM** | Construcción de la interfaz por componentes |
-| **Bootstrap 5.3.3** | Estilos visuales del panel |
-| **React Router DOM 7** | Navegación entre pantallas |
-| **Vite 8** | Servidor de desarrollo y empaquetado |
+- `frontend/`: panel principal, Dashboard, Candidatos, Solicitudes, Kanban, calendario, buscador y perfiles.
+- `backend/`: API, autenticación, SQLite, SMTP, informes y rutas.
+- `solicitud/`: formulario independiente de solicitud.
+- `docs/`: notas técnicas.
+- `ScreenShots/`: capturas de referencia.
+- `SOLUCION_DE_PROBLEMAS.md`: guía de incidentes y soluciones.
 
-## Estructura de artefactos
+**Datos:** Se incluye `backend/data/aqua.db` procedente del ZIP del usuario para conservar registros y cuentas de prueba. Es información sensible: no la publiques ni la envíes a terceros. Si ya tienes datos más nuevos en tu equipo, **no sobrescribas tu archivo `backend/data/aqua.db`**.
 
-- `solicitud/` — Formulario web React (Vite + TypeScript) que envía la solicitud al backend.
-- `backend/` — API Express + SQLite (candidatos, solicitudes, evaluaciones, usuarios (hardcodeados)).
-- `frontend/` — Panel web (dashboard, candidatos, solicitudes) y Login (imagen de fondo, logo, campos de usuario/contraseña, mostrar contraseña, "recordarme", olvide contraseña, boton ingresar).
-- `docs/` — Documentación técnica y de implementación.
-- `plantillas/` — Plantillas base (informe Excel y pauta de entrevista Word) por familia de cargo.
+**Credenciales:** `backend/.env` está excluido deliberadamente. Debes conservar tu copia local segura y rotar la contraseña SMTP expuesta en el archivo de ejemplo original.
 
-## Stack
-
-- Backend: Node.js + Express + SQLite (`node:sqlite`, `multer`)
-- Frontend: React + TypeScript (Vite)
-
+**Verificación:** la estructura y sintaxis básica de rutas JS se revisaron; una prueba de extremo a extremo en Windows y la compilación de frontend deben hacerse localmente después de `npm ci`.

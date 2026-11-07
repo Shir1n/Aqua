@@ -66,15 +66,14 @@ export default function SolicitudForm() {
 
   return (
     <>
-      <div className="page-header">
-        <h1>Nueva solicitud</h1>
-      </div>
+      <div className="sigma-form-heading"><div><span className="sigma-kicker">GESTIÓN DEL PROCESO / SOLICITUDES</span><h1>Nueva solicitud</h1><p>Asocia un candidato, configura la evaluación y registra los detalles.</p></div><span className="sigma-step">Nueva evaluación</span></div>
 
-      <form className="card shadow-sm" style={{ maxWidth: 640 }} onSubmit={onSubmit}>
-        <div className="card-body p-4">
+      <form className="sigma-form-shell" onSubmit={onSubmit}>
+        <div className="sigma-form-body">
+          <div className="sigma-section-heading"><span className="sigma-section-number">01</span><div><h2>Candidato y cargo</h2><p>Al elegir un candidato, el cargo y la familia se completan automáticamente.</p></div></div>
           {error && <div className="alert alert-danger">{error}</div>}
 
-          <div className="mb-3">
+          <div className="sigma-field sigma-field-full">
             <label className="form-label">Candidato *</label>
             <select
               className="form-select"
@@ -92,7 +91,7 @@ export default function SolicitudForm() {
               ))}
             </select>
           </div>
-          <div className="row">
+          <div className="row sigma-form-row">
             <div className="col-md-6 mb-3">
               <label className="form-label">Cargo *</label>
               <input
@@ -121,7 +120,8 @@ export default function SolicitudForm() {
               </select>
             </div>
           </div>
-          <div className="row">
+          <div className="sigma-section-heading"><span className="sigma-section-number">02</span><div><h2>Planificación</h2><p>Define la fecha, el evaluador y el estado inicial.</p></div></div>
+          <div className="row sigma-form-row">
             <div className="col-md-6 mb-3">
               <label className="form-label">Fecha de solicitud</label>
               <input
@@ -157,6 +157,7 @@ export default function SolicitudForm() {
               ))}
             </select>
           </div>
+          <div className="sigma-section-heading"><span className="sigma-section-number">03</span><div><h2>Notas adicionales</h2><p>Información relevante para quien gestione la evaluación.</p></div></div>
           <div className="mb-4">
             <label className="form-label">Observaciones</label>
             <textarea
@@ -167,14 +168,14 @@ export default function SolicitudForm() {
             />
           </div>
 
-          <div className="d-flex gap-2">
+          <div className="sigma-form-actions"><span>Los campos con * son obligatorios.</span><div className="d-flex gap-2">
             <button className="btn btn-primary" type="submit" disabled={saving}>
               {saving ? 'Guardando…' : 'Crear solicitud'}
             </button>
             <button className="btn btn-outline-secondary" type="button" onClick={() => navigate('/solicitudes')}>
               Cancelar
             </button>
-          </div>
+          </div></div>
         </div>
       </form>
     </>

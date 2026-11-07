@@ -170,10 +170,15 @@ body {
 :root[data-theme="dark"] .topbar-avatar{background:#1c3b50;color:#9dd7ef}
 :root[data-theme="dark"] .theme-toggle{background:#18232d;border-color:#30404e;color:#f3c96b}
 :root[data-theme="dark"] .theme-toggle:hover{background:#1d2b37;border-color:#3f667c;color:#ffd978}
-:root[data-theme="dark"] .app-sidebar{background:linear-gradient(180deg,#071a29 0%,#081523 100%);border-right-color:#1e3445}
+:root[data-theme="dark"] .app-sidebar{background:linear-gradient(180deg,#343b43 0%,#292f36 100%);border-right-color:#454d56}
+:root[data-theme="dark"] .sidebar-brand small{color:#c1c8cf}
+:root[data-theme="dark"] .sidebar-section-title{color:#b0bac3}
+:root[data-theme="dark"] .sidebar-user-text span{color:#c0c7ce}
+:root[data-theme="dark"] .sidebar-bottom{border-top-color:rgba(255,255,255,.16)}
+:root[data-theme="dark"] .sidebar-logout{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#f0f2f4}
 :root[data-theme="dark"] .sidebar-nav .side-nav-link{color:#a8b8c6}
-:root[data-theme="dark"] .sidebar-nav .side-nav-link:hover{background:#102d40;color:#edf7fb}
-:root[data-theme="dark"] .sidebar-nav .side-nav-link.active{background:linear-gradient(90deg,#123f59,#164761);color:#fff;box-shadow:inset 3px 0 0 #55b8df}
+:root[data-theme="dark"] .sidebar-nav .side-nav-link:hover{background:#454e57;color:#fff}
+:root[data-theme="dark"] .sidebar-nav .side-nav-link.active{background:#505b66;color:#fff;box-shadow:inset 3px 0 0 #8bc9e8}
 
 
 :root[data-theme="dark"] .card,:root[data-theme="dark"] .table{background-color:#151f29;color:#e7edf3;border-color:#293945}
@@ -186,3 +191,70 @@ body {
 :root[data-theme="dark"] .btn-light,:root[data-theme="dark"] .btn-outline-secondary{color:#dbe5eb;border-color:#3b4c59;background:#1a2630}
 
 @media (max-width:700px){.topbar-actions{gap:8px}.theme-toggle{width:38px;height:38px}}
+
+
+/* Mejora parcial: barra lateral gris compatible con tema oscuro */
+:root[data-theme="dark"] {
+  --app-background: #111827;
+  --app-surface: #1f2937;
+  --app-text: #e5e7eb;
+  --app-muted: #9ca3af;
+  --app-border: #374151;
+}
+:root[data-theme="dark"] body { background: var(--app-background); color: var(--app-text); }
+:root[data-theme="dark"] .app-sidebar {
+  background: linear-gradient(180deg, #30343b 0%, #242830 100%);
+  color: #f3f4f6;
+}
+:root[data-theme="dark"] .app-main,
+:root[data-theme="dark"] .app-container { color: var(--app-text); }
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .table,
+:root[data-theme="dark"] .form-control,
+:root[data-theme="dark"] .form-select {
+  background-color: var(--app-surface);
+  color: var(--app-text);
+  border-color: var(--app-border);
+}
+
+/* SIGMA-Aqua 4.2 — centro de usuario */
+.topbar-actions{position:relative}
+.sigma-profile-trigger{border:0;background:transparent;cursor:pointer;padding:6px 9px;border-radius:12px;color:var(--app-text,#304558);transition:background .18s,transform .18s}
+.sigma-profile-trigger:hover,.sigma-profile-trigger[aria-expanded="true"]{background:rgba(41,141,184,.09)}
+.sigma-profile-trigger:active{transform:scale(.98)}
+.sigma-profile-menu{position:absolute;right:0;top:calc(100% + 12px);width:min(320px,calc(100vw - 28px));background:var(--app-surface,#fff);color:var(--app-text,#19334b);border:1px solid var(--app-border,#dce5eb);border-radius:17px;box-shadow:0 18px 48px rgba(9,32,53,.18);padding:9px;z-index:1100;animation:sigmaProfileIn .18s ease-out}
+@keyframes sigmaProfileIn{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:translateY(0)}}
+.sigma-profile-header{display:flex;gap:12px;align-items:center;padding:12px 11px 15px;border-bottom:1px solid var(--app-border,#e3e9ee);margin-bottom:6px}
+.sigma-profile-header>div:last-child{min-width:0;display:flex;flex-direction:column;gap:3px}
+.sigma-profile-header strong{font-size:.88rem}
+.sigma-profile-header small{font-size:.73rem;color:var(--app-muted,#73889a);overflow-wrap:anywhere}
+.sigma-profile-header span{font-size:.7rem;color:#1682ac}
+.sigma-profile-item{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;padding:11px 12px;border:0;border-radius:9px;background:transparent;color:inherit;font:inherit;font-size:.85rem;cursor:pointer;transition:background .17s,transform .17s}
+.sigma-profile-item:hover{background:rgba(34,148,194,.10);transform:translateX(2px)}
+.sigma-profile-item span{color:#91a4b3;font-size:1.2rem}
+.sigma-profile-exit{border-top:1px solid var(--app-border,#e3e9ee);border-radius:0;margin-top:6px;color:#c24a53;font-weight:700}
+.sigma-profile-backdrop{position:fixed;inset:0;z-index:2000;background:rgba(8,26,42,.42);display:grid;place-items:center;padding:16px}
+.sigma-profile-dialog{width:min(470px,100%);max-height:85vh;overflow:auto;background:var(--app-surface,#fff);color:var(--app-text,#18334a);border:1px solid var(--app-border,#dce5eb);border-radius:18px;box-shadow:0 22px 70px rgba(0,0,0,.24);padding:25px}
+.sigma-profile-dialog-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.sigma-profile-dialog-head h2{font-size:1.25rem;margin:0}
+.sigma-profile-dialog-head button{border:0;background:transparent;color:inherit;font-size:1.7rem;cursor:pointer}
+.sigma-profile-fields{display:grid;gap:14px}
+.sigma-profile-fields label{display:grid;gap:7px;font-size:.82rem;font-weight:650}
+.sigma-profile-fields input:not([type="checkbox"]){width:100%;padding:11px 12px;border-radius:9px;border:1px solid var(--app-border,#cbd8e2);background:var(--app-surface,#fff);color:var(--app-text,#18334a);font:inherit}
+.sigma-profile-fields input:disabled{opacity:.62}
+.sigma-profile-fields p,.sigma-profile-activity p{font-size:.78rem;color:var(--app-muted,#73889a);margin:0}
+.sigma-profile-options{display:flex;gap:10px}
+.sigma-profile-options button{flex:1;padding:12px;border:1px solid var(--app-border,#cbd8e2);border-radius:10px;background:transparent;color:inherit;cursor:pointer}
+.sigma-profile-options button.selected{border-color:#1586b1;background:rgba(21,134,177,.12)}
+.sigma-profile-fields label.sigma-profile-check{display:flex;align-items:center;gap:10px}
+.sigma-profile-check input{width:18px;height:18px}
+.sigma-profile-save{margin-top:18px;background:#087fac;border:0;border-radius:10px;color:white;padding:11px 18px;cursor:pointer;font-weight:700}
+.sigma-profile-save:disabled{opacity:.5;cursor:wait}
+.sigma-profile-feedback{font-size:.82rem;margin:14px 0 0;color:#138c72}
+.sigma-profile-activity{display:grid;gap:12px;max-height:350px;overflow:auto}
+.sigma-profile-activity>div{border-bottom:1px solid var(--app-border,#e3e9ee);padding-bottom:10px}
+.sigma-profile-activity strong,.sigma-profile-activity small{display:block}
+.sigma-profile-activity small{color:var(--app-muted,#73889a);font-size:.72rem;margin:3px 0}
+:root[data-theme="dark"] .sigma-profile-menu,:root[data-theme="dark"] .sigma-profile-dialog{background:#172532;color:#e8f1f6;border-color:#304354}
+@media(max-width:520px){.sigma-profile-trigger .sigma-profile-identity{display:none}}
+@media(prefers-reduced-motion:reduce){.sigma-profile-menu{animation:none}.sigma-profile-item,.sigma-profile-trigger{transition:none}}
