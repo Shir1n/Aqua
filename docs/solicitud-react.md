@@ -10,7 +10,9 @@ Analista ──► solicitud React (src/App.tsx)
                 ▼
    Backend Express  POST /api/solicitud  (multer)
                 ▼
-   SQLite: candidatos + solicitudes  (CV/descriptor en data/uploads/)
+   SQLite: candidatos + solicitudes + documentos
+   Carpeta data/solicitudes/<id>_<Nombre>/ con CV, descriptor,
+   formulario (JSON), informe (Excel) y pauta (Word) de la familia de cargo
 ```
 
 ## Campos del formulario
@@ -61,5 +63,12 @@ Definidas en `src/catalogs.ts`:
 - Solo acepta archivos PDF, DOC o DOCX, de hasta 10 MB cada uno; el CV es obligatorio.
 - Máximo 20 envíos por IP cada 10 minutos.
 - Responde solo `{ id, mensaje }`, sin exponer datos internos.
+- Todo se guarda en una transacción: si algo falla, se deshace y se borran la carpeta y los archivos temporales.
+
+## Al recibir una solicitud
+
+- Los datos del formulario (reclutador, origen, ubicación, unidad, CECO, referencias, referido) quedan en columnas propias de `solicitudes`; "Aspectos a indagar" va en `observaciones`.
+- Se registra "Solicitud recibida" en el historial y se notifica a los usuarios activos con rol Administrador, Analista o Jefatura.
+- En el panel, el detalle de la solicitud lista los documentos y permite descargarlos (`GET /api/documentos/:id/descargar`, con sesión).
 
 El resto de `/api` (incluido `/api/solicitudes`) sigue exigiendo inicio de sesión.

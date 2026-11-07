@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { db } from '../db.js'
+import { db, ESTADOS } from '../db.js'
 import { notify } from './extra.js'
 import { audit, requireRole } from '../security.js'
 
@@ -9,6 +9,13 @@ function registrarHistorial(solicitudId, accion, detalle = '', usuario = 'Sistem
   db.prepare('INSERT INTO historial_solicitudes (solicitud_id, accion, detalle, usuario, creado_en) VALUES (?, ?, ?, ?, ?)')
     .run(solicitudId, accion, detalle, usuario, new Date().toISOString())
 }
+
+// Una solicitud solo puede cerrarse con una evaluación final que tenga resultado y fecha.
+function evaluacionFinalCompleta(solicitudId) {
+  const e = db.prepare('SELECT resultado, fecha_evaluacion, borrador FROM evaluaciones WHERE solicitud_id = ?').get(solicitudId)
+  return Boolean(e && e.borrador === 0 && e.resultado && e.fecha_evaluacion)
+}
+const ERROR_SIN_EVALUACION = 'Finaliza primero la evaluación con resultado y fecha antes de cerrar la solicitud'
 
 const SOLICITUD_SELECT = `
   SELECT s.*, c.nombre AS candidato_nombre, u.nombre AS responsable_nombre
@@ -43,7 +50,10 @@ router.get('/:id', (req, res) => {
   const evaluacion = db
     .prepare('SELECT * FROM evaluaciones WHERE solicitud_id = ?')
     .get(req.params.id)
-  res.json({ ...row, evaluacion: evaluacion || null })
+  const documentos = db
+    .prepare('SELECT id, tipo, nombre, creado_en FROM documentos WHERE solicitud_id = ? ORDER BY id')
+    .all(req.params.id)
+  res.json({ ...row, evaluacion: evaluacion || null, documentos })
 })
 
 router.post('/', requireRole('Administrador','Analista','Jefatura'), (req, res) => {
@@ -82,10 +92,25 @@ router.put('/:id', requireRole('Administrador','Analista','Jefatura','Evaluador'
   const existing = db.prepare('SELECT * FROM solicitudes WHERE id = ?').get(req.params.id)
   if (!existing) return res.status(404).json({ error: 'Solicitud no encontrada' })
   if (req.user.rol === 'Evaluador' && existing.responsable_id !== req.user.id) return res.status(403).json({error:'Esta solicitud no está asignada a tu cuenta'})
-  const { estado, responsableId, observaciones } = req.body || {}
+  const body = req.body || {}
+  const { estado, observaciones } = body
   const nuevoEstado = estado ?? existing.estado
-  const nuevoResponsable = responsableId ?? existing.responsable_id
+  // `responsableId: null` desasigna; si no viene el campo, se conserva el actual.
+  const nuevoResponsable = Object.hasOwn(body, 'responsableId') ? (body.responsableId === null || body.responsableId === '' ? null : Number(body.responsableId)) : existing.responsable_id
   const nuevasObservaciones = observaciones ?? existing.observaciones
+
+  if (!ESTADOS.includes(nuevoEstado)) return res.status(400).json({ error: 'Estado inválido' })
+  if (observaciones !== undefined && typeof observaciones !== 'string') return res.status(400).json({ error: 'Observaciones inválidas' })
+  if (nuevoEstado === 'Finalizada' && existing.estado !== 'Finalizada' && !evaluacionFinalCompleta(existing.id)) {
+    return res.status(409).json({ error: ERROR_SIN_EVALUACION })
+  }
+  if (nuevoResponsable !== existing.responsable_id) {
+    if (req.user.rol === 'Evaluador') return res.status(403).json({ error: 'Solo Analistas, Jefatura o Administración pueden reasignar solicitudes' })
+    if (nuevoResponsable !== null) {
+      const u = Number.isInteger(nuevoResponsable) && db.prepare('SELECT id FROM usuarios WHERE id = ? AND activo = 1').get(nuevoResponsable)
+      if (!u) return res.status(400).json({ error: 'El responsable no existe o está desactivado' })
+    }
+  }
   db.prepare(
     'UPDATE solicitudes SET estado = ?, responsable_id = ?, observaciones = ? WHERE id = ?'
   ).run(
@@ -95,10 +120,13 @@ router.put('/:id', requireRole('Administrador','Analista','Jefatura','Evaluador'
     req.params.id
   )
   if (nuevoEstado !== existing.estado) { notify(nuevoResponsable,'Estado de solicitud actualizado',`Solicitud #${req.params.id}: ${nuevoEstado}`,`/solicitudes/${req.params.id}`); audit(req,'Estado cambiado',`${req.params.id}: ${nuevoEstado}`) }
-  if (nuevoEstado !== existing.estado) registrarHistorial(req.params.id, 'Cambio de estado', `${existing.estado} → ${nuevoEstado}`)
-  if (nuevasObservaciones !== existing.observaciones) registrarHistorial(req.params.id, 'Observaciones actualizadas', nuevasObservaciones || 'Sin observaciones')
+  if (nuevoEstado !== existing.estado) registrarHistorial(req.params.id, 'Cambio de estado', `${existing.estado} → ${nuevoEstado}`, req.user.nombre)
+  if (nuevasObservaciones !== existing.observaciones) registrarHistorial(req.params.id, 'Observaciones actualizadas', nuevasObservaciones || 'Sin observaciones', req.user.nombre)
   if (nuevoResponsable !== existing.responsable_id) notify(nuevoResponsable,'Evaluación asignada',`Solicitud #${req.params.id}`,`/solicitudes/${req.params.id}`)
-  if (nuevoResponsable !== existing.responsable_id) registrarHistorial(req.params.id, 'Responsable actualizado', `ID responsable: ${nuevoResponsable ?? 'Sin asignar'}`)
+  if (nuevoResponsable !== existing.responsable_id) {
+    const nombre = nuevoResponsable === null ? 'Sin asignar' : db.prepare('SELECT nombre FROM usuarios WHERE id = ?').get(nuevoResponsable)?.nombre
+    registrarHistorial(req.params.id, 'Responsable actualizado', nombre || `ID ${nuevoResponsable}`, req.user.nombre)
+  }
   const row = db.prepare(`${SOLICITUD_SELECT} WHERE s.id = ?`).get(req.params.id)
   res.json(row)
 })
@@ -110,8 +138,7 @@ router.patch('/:id/estado', requireRole('Administrador','Analista','Jefatura','E
  if(!existing)return res.status(404).json({error:'Solicitud no encontrada'})
  if(req.user.rol==='Evaluador'&&existing.responsable_id!==req.user.id)return res.status(403).json({error:'Solicitud no asignada a tu cuenta'})
  if(estado==='Finalizada'){
-  const evaluation=db.prepare('SELECT id,resultado,fecha_evaluacion,borrador FROM evaluaciones WHERE solicitud_id=?').get(existing.id)
-  if(!evaluation||evaluation.borrador!==0||!evaluation.resultado||!evaluation.fecha_evaluacion)return res.status(409).json({error:'Finaliza primero la evaluación con resultado y fecha antes de cerrar la solicitud'})
+  if(!evaluacionFinalCompleta(existing.id))return res.status(409).json({error:ERROR_SIN_EVALUACION})
  }
  if(estado!==existing.estado){
   db.prepare('UPDATE solicitudes SET estado=? WHERE id=?').run(estado,existing.id)

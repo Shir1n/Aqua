@@ -60,6 +60,15 @@ export function initDb() {
       creado_en TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS documentos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      solicitud_id INTEGER NOT NULL REFERENCES solicitudes(id) ON DELETE CASCADE,
+      tipo TEXT NOT NULL CHECK (tipo IN ('cv','descriptor','informe','pauta','formulario')),
+      nombre TEXT NOT NULL,
+      ruta TEXT NOT NULL,
+      creado_en TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS evaluaciones (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       solicitud_id INTEGER NOT NULL UNIQUE REFERENCES solicitudes(id) ON DELETE CASCADE,
@@ -80,8 +89,19 @@ export function initDb() {
     CREATE TABLE IF NOT EXISTS agenda(id INTEGER PRIMARY KEY AUTOINCREMENT, solicitud_id INTEGER NOT NULL REFERENCES solicitudes(id) ON DELETE CASCADE, evaluador_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL, fecha TEXT NOT NULL, hora TEXT NOT NULL, notas TEXT NOT NULL DEFAULT '', creado_en TEXT NOT NULL);
   `)
   for (const [col, ddl] of [['competencias','ALTER TABLE evaluaciones ADD COLUMN competencias TEXT'], ['recomendaciones','ALTER TABLE evaluaciones ADD COLUMN recomendaciones TEXT'], ['borrador','ALTER TABLE evaluaciones ADD COLUMN borrador INTEGER NOT NULL DEFAULT 1']]) { try { db.exec(ddl) } catch {} }
+  migrarSolicitudes()
   seed()
   asignarClavesIniciales()
+}
+
+// Datos del formulario de solicitud guardados en columnas propias (antes iban como texto en observaciones).
+const COLUMNAS_SOLICITUD = ['carpeta', 'reclutador', 'origen', 'ubicacion', 'unidad', 'ceco', 'requiere_referencias', 'es_referido']
+
+function migrarSolicitudes() {
+  const existentes = new Set(db.prepare('PRAGMA table_info(solicitudes)').all().map((c) => c.name))
+  for (const col of COLUMNAS_SOLICITUD) {
+    if (!existentes.has(col)) db.exec(`ALTER TABLE solicitudes ADD COLUMN ${col} TEXT`)
+  }
 }
 
 export const CREDENCIALES_PATH = join(dataDir, 'credenciales-iniciales.txt')

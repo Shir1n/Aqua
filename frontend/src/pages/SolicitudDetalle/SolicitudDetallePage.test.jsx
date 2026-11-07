@@ -7,7 +7,7 @@ import SolicitudDetalle from './SolicitudDetallePage';
 const mocks = vi.hoisted(() => ({
   getSolicitud: vi.fn(),
   getCandidato: vi.fn(),
-  updateSolicitud: vi.fn(),
+  actualizarEstado: vi.fn(),
   saveEvaluacion: vi.fn(),
 }));
 
@@ -15,7 +15,7 @@ vi.mock('../../api', () => ({
   api: {
     getSolicitud: mocks.getSolicitud,
     getCandidato: mocks.getCandidato,
-    updateSolicitud: mocks.updateSolicitud,
+    actualizarEstado: mocks.actualizarEstado,
     saveEvaluacion: mocks.saveEvaluacion,
   },
 }));
@@ -27,7 +27,7 @@ vi.mock('../../AuthContext', () => ({
 beforeEach(() => {
   mocks.getSolicitud.mockReset();
   mocks.getCandidato.mockReset();
-  mocks.updateSolicitud.mockReset();
+  mocks.actualizarEstado.mockReset();
   mocks.saveEvaluacion.mockReset();
 });
 
@@ -92,7 +92,7 @@ describe('SolicitudDetallePage', () => {
   it('actualiza el estado de la solicitud', async () => {
     mocks.getSolicitud.mockResolvedValue(solicitudMock);
     mocks.getCandidato.mockResolvedValue(candidatoMock);
-    mocks.updateSolicitud.mockResolvedValue({});
+    mocks.actualizarEstado.mockResolvedValue({});
 
     renderDetalle();
 
@@ -102,8 +102,23 @@ describe('SolicitudDetallePage', () => {
     const selectEstado = screen.getAllByRole('combobox')[0];
     await user.selectOptions(selectEstado, 'Finalizada');
 
-    expect(mocks.updateSolicitud).toHaveBeenCalledWith(1, { estado: 'Finalizada' });
+    expect(mocks.actualizarEstado).toHaveBeenCalledWith(1, 'Finalizada');
     expect(await screen.findByText('Estado actualizado')).toBeInTheDocument();
+  });
+
+  it('muestra el error si no se puede cerrar sin evaluación, sin perder la página', async () => {
+    mocks.getSolicitud.mockResolvedValue(solicitudMock);
+    mocks.getCandidato.mockResolvedValue(candidatoMock);
+    mocks.actualizarEstado.mockRejectedValue(new Error('Finaliza primero la evaluación con resultado y fecha antes de cerrar la solicitud'));
+
+    renderDetalle();
+
+    await screen.findByRole('heading', { name: /Solicitud #1/ });
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getAllByRole('combobox')[0], 'Finalizada');
+
+    expect(await screen.findByText(/Finaliza primero la evaluación/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Solicitud #1/ })).toBeInTheDocument();
   });
 
   it('guarda la evaluación', async () => {
