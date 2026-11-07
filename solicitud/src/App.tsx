@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type DragEvent } from 'react'
 import { FAMILIAS, ORIGENES, SI_NO, UBICACIONES, UNIDADES } from './catalogs'
+import logoAquaChile from './assets/logo_pag_inicio.png'
 
 const FLOW_URL =
   (import.meta.env.VITE_FLOW_URL as string | undefined) ??
@@ -34,6 +35,92 @@ const initialForm: FormState = {
 }
 
 type Status = 'idle' | 'sending' | 'ok' | 'error'
+
+const EXTENSIONES = ['.pdf', '.doc', '.docx']
+const MAX_BYTES = 10 * 1024 * 1024
+
+function validarArchivo(file: File): string {
+  const nombre = file.name.toLowerCase()
+  if (!EXTENSIONES.some((ext) => nombre.endsWith(ext))) return `"${file.name}" no es PDF, DOC ni DOCX.`
+  if (file.size > MAX_BYTES) return `"${file.name}" supera el máximo de 10 MB.`
+  return ''
+}
+
+function FileUpload({
+  id,
+  title,
+  description,
+  file,
+  required = false,
+  onChange,
+}: {
+  id: string
+  title: string
+  description: string
+  file: File | null
+  required?: boolean
+  onChange: (file: File | null) => void
+}) {
+  const [dragging, setDragging] = useState(false)
+  const [error, setError] = useState('')
+
+  // El archivo vive en el estado de React (no en el <input>), así funciona igual
+  // al arrastrarlo o al elegirlo con clic. Por eso el input no lleva `required`:
+  // la obligatoriedad del CV la valida onSubmit.
+  function elegir(selected: File | undefined) {
+    if (!selected) return
+    const msg = validarArchivo(selected)
+    setError(msg)
+    if (!msg) onChange(selected)
+  }
+
+  function handleDrop(e: DragEvent<HTMLLabelElement>) {
+    e.preventDefault()
+    setDragging(false)
+    elegir(e.dataTransfer.files?.[0])
+  }
+
+  return (
+    <div className="upload-field">
+      <label
+        htmlFor={id}
+        className={`upload-zone${dragging ? ' upload-zone--dragging' : ''}${file ? ' upload-zone--selected' : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDragging(true)
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+      >
+        <span className="upload-icon" aria-hidden="true">
+          {file ? '✓' : '↑'}
+        </span>
+        <span className="upload-copy">
+          <strong>{file ? file.name : <>{title}{required && <span className="req"> *</span>}</>}</strong>
+          <span>{file ? 'Archivo seleccionado · Haz clic para reemplazarlo' : description}</span>
+        </span>
+        <span className="upload-action">{file ? 'Cambiar' : 'Seleccionar archivo'}</span>
+      </label>
+      <input
+        className="file-input"
+        id={id}
+        type="file"
+        accept=".pdf,.doc,.docx"
+        aria-required={required}
+        onChange={(e) => {
+          elegir(e.target.files?.[0])
+          e.target.value = '' // permite volver a elegir el mismo archivo
+        }}
+      />
+      {error && <p className="upload-error" role="alert">{error}</p>}
+      {file && (
+        <button className="remove-file" type="button" onClick={() => { setError(''); onChange(null) }}>
+          Quitar archivo
+        </button>
+      )}
+    </div>
+  )
+}
 
 export default function App() {
   const [form, setForm] = useState<FormState>(initialForm)
@@ -75,7 +162,10 @@ export default function App() {
         if (descFile) data.append('descriptor', descFile)
 
         const res = await fetch(FLOW_URL, { method: 'POST', body: data })
-        if (!res.ok) throw new Error(`El flujo respondió con estado ${res.status}.`)
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}))
+          throw new Error(body.error || `El servidor respondió con estado ${res.status}.`)
+        }
       } else {
         await new Promise((r) => setTimeout(r, 600))
       }
@@ -83,7 +173,11 @@ export default function App() {
       setStatus('ok')
     } catch (err) {
       setStatus('error')
-      setErrorMsg(err instanceof Error ? err.message : 'No se pudo enviar la solicitud.')
+      setErrorMsg(
+        err instanceof TypeError
+          ? 'No se pudo conectar con el servidor. Verifica tu conexión e inténtalo nuevamente.'
+          : err instanceof Error ? err.message : 'No se pudo enviar la solicitud.',
+      )
     }
   }
 
@@ -97,237 +191,232 @@ export default function App() {
 
   if (status === 'ok') {
     return (
-      <div className="screen">
-        <div className="card card--center">
-          <span className="check" aria-hidden="true">
-            ✓
-          </span>
+      <main className="screen">
+        <div className="success-card">
+          <div className="success-mark" aria-hidden="true">✓</div>
+          <span className="eyebrow">RECLUTAMIENTO Y SELECCIÓN</span>
           <h1>Solicitud enviada</h1>
-          <p>La solicitud de evaluación psicolaboral fue registrada correctamente.</p>
+          <p className="success-intro">
+            La solicitud de evaluación psicolaboral fue registrada correctamente.
+          </p>
 
-          <dl className="summary">
-            <dt>Candidato/a</dt>
-            <dd>{form.nombreCandidato}</dd>
-            <dt>Origen</dt>
-            <dd>{form.origen}</dd>
-            <dt>Cargo</dt>
-            <dd>{form.nombreCargo}</dd>
-            <dt>Familia de cargo</dt>
-            <dd>{form.familiaCargo}</dd>
-            <dt>Ubicación</dt>
-            <dd>{form.ubicacion}</dd>
-            <dt>CV adjunto</dt>
-            <dd>{cvFile?.name}</dd>
-          </dl>
+          <div className="success-summary">
+            <div><span>Candidato/a</span><strong>{form.nombreCandidato}</strong></div>
+            <div><span>Origen</span><strong>{form.origen}</strong></div>
+            <div><span>Cargo</span><strong>{form.nombreCargo}</strong></div>
+            <div><span>Familia de cargo</span><strong>{form.familiaCargo}</strong></div>
+            <div><span>Ubicación</span><strong>{form.ubicacion}</strong></div>
+            <div><span>CV adjunto</span><strong>{cvFile?.name}</strong></div>
+          </div>
 
-          <button className="btn" onClick={reset}>
-            Nueva solicitud
+          <button className="button button--primary button--full" onClick={reset}>
+            Crear nueva solicitud <span aria-hidden="true">→</span>
           </button>
         </div>
-      </div>
+      </main>
     )
   }
 
   return (
-    <div className="screen">
-      <form className="card card--wide" onSubmit={onSubmit}>
-        <h1>Solicitud de Evaluación Psicolaboral</h1>
-        <p className="subtitle">Reclutamiento y Selección · AquaChile</p>
-
-        <section>
-          <h2>Solicitante</h2>
-          <label>
-            Reclutador/a <span className="req">*</span>
-            <input
-              required
-              value={form.reclutador}
-              onChange={(e) => update('reclutador', e.target.value)}
-              placeholder="Nombre del analista que solicita"
-            />
-          </label>
-        </section>
-
-        <section>
-          <h2>Candidato/a</h2>
-          <div className="grid">
-            <label>
-              Nombre del candidato/a <span className="req">*</span>
-              <input
-                required
-                value={form.nombreCandidato}
-                onChange={(e) => update('nombreCandidato', e.target.value)}
-                placeholder="Nombre y apellido"
-              />
-            </label>
-            <fieldset>
-              <legend>
-                Origen del candidato/a <span className="req">*</span>
-              </legend>
-              <div className="radio-row">
-                {ORIGENES.map((o) => (
-                  <label key={o} className="radio">
-                    <input
-                      type="radio"
-                      name="origen"
-                      required
-                      checked={form.origen === o}
-                      onChange={() => update('origen', o)}
-                    />
-                    {o}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+    <main className="screen">
+      <div className="page-shell">
+        <header className="topbar">
+          <div className="brand">
+            <img className="brand-logo" src={logoAquaChile} alt="AquaChile" />
+            <span className="brand-divider" aria-hidden="true" />
+            <span className="brand-area">PERSONAS</span>
           </div>
-        </section>
-
-        <section>
-          <h2>Cargo</h2>
-          <div className="grid">
-            <label>
-              Familia de cargo <span className="req">*</span>
-              <select
-                required
-                value={form.familiaCargo}
-                onChange={(e) => update('familiaCargo', e.target.value)}
-              >
-                <option value="" disabled>
-                  Selecciona una familia
-                </option>
-                {FAMILIAS.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Nombre del cargo <span className="req">*</span>
-              <input
-                required
-                value={form.nombreCargo}
-                onChange={(e) => update('nombreCargo', e.target.value)}
-                placeholder="Ej. Operador de Máquina"
-              />
-            </label>
-            <label>
-              Ubicación del cargo <span className="req">*</span>
-              <input
-                required
-                list="ubicaciones"
-                value={form.ubicacion}
-                onChange={(e) => update('ubicacion', e.target.value)}
-                placeholder="Planta, oficina o centro"
-              />
-              <datalist id="ubicaciones">
-                {UBICACIONES.map((u) => (
-                  <option key={u} value={u} />
-                ))}
-              </datalist>
-            </label>
-            <label>
-              Unidad
-              <input
-                list="unidades"
-                value={form.unidad}
-                onChange={(e) => update('unidad', e.target.value)}
-                placeholder="Ej. Industrial"
-              />
-              <datalist id="unidades">
-                {UNIDADES.map((u) => (
-                  <option key={u} value={u} />
-                ))}
-              </datalist>
-            </label>
-            <label>
-              CECO (centro de costos)
-              <input
-                value={form.ceco}
-                onChange={(e) => update('ceco', e.target.value)}
-                placeholder="Ej. A170010301"
-              />
-            </label>
-            <fieldset>
-              <legend>
-                Requiere referencias <span className="req">*</span>
-              </legend>
-              <div className="radio-row">
-                {SI_NO.map((s) => (
-                  <label key={s} className="radio">
-                    <input
-                      type="radio"
-                      name="requiereReferencias"
-                      checked={form.requiereReferencias === s}
-                      onChange={() => update('requiereReferencias', s)}
-                    />
-                    {s}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+          <div className="topbar-context">
+            <span className="context-dot" />
+            Plataforma interna
           </div>
-        </section>
+        </header>
 
-        <section>
-          <h2>Documentos</h2>
-          <div className="grid">
-            <label>
-              Currículum (CV) <span className="req">*</span>
-              <input
-                type="file"
-                required
-                accept=".pdf,.doc,.docx"
-                onChange={(e) => setCvFile(e.target.files?.[0] ?? null)}
-              />
-              <small>{cvFile ? `Adjunto: ${cvFile.name}` : 'PDF o DOCX'}</small>
-            </label>
-            <label>
-              Descriptor del cargo
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={(e) => setDescFile(e.target.files?.[0] ?? null)}
-              />
-              <small>{descFile ? `Adjunto: ${descFile.name}` : 'Opcional'}</small>
-            </label>
+        <div className="page-heading">
+          <div>
+            <span className="eyebrow">RECLUTAMIENTO Y SELECCIÓN</span>
+            <h1>Solicitud de evaluación psicolaboral</h1>
+            <p>Registra los antecedentes del candidato para iniciar su proceso de evaluación.</p>
           </div>
-        </section>
+          <div className="heading-tag"><span className="tag-dot" /> Nueva solicitud</div>
+        </div>
 
-        <section>
-          <h2>Información adicional</h2>
-          <fieldset>
-            <legend>¿El candidato es referido?</legend>
-            <div className="radio-row">
-              {SI_NO.map((s) => (
-                <label key={s} className="radio">
-                  <input
-                    type="radio"
-                    name="esReferido"
-                    checked={form.esReferido === s}
-                    onChange={() => update('esReferido', s)}
-                  />
-                  {s}
-                </label>
-              ))}
+        <form className="form-card" onSubmit={onSubmit}>
+          <div className="form-intro">
+            <div>
+              <h2>Antecedentes de la solicitud</h2>
+              <p>Completa la información y adjunta los documentos correspondientes.</p>
             </div>
-          </fieldset>
-          <label>
-            Aspectos a indagar / comentarios
-            <textarea
-              rows={3}
-              value={form.aspectos}
-              onChange={(e) => update('aspectos', e.target.value)}
-              placeholder="Competencias o puntos a profundizar (opcional)"
-            />
-          </label>
-        </section>
+            <span className="required-note"><span className="req">*</span> Campos obligatorios</span>
+          </div>
 
-        {errorMsg && <p className="error">{errorMsg}</p>}
+          <section className="form-section">
+            <div className="section-heading">
+              <span className="section-number">01</span>
+              <div><h3>Solicitante</h3><p>Información de quien inicia la solicitud.</p></div>
+            </div>
+            <div className="field-grid field-grid--single">
+              <label className="field">
+                <span>Reclutador/a <span className="req">*</span></span>
+                <input
+                  required
+                  value={form.reclutador}
+                  onChange={(e) => update('reclutador', e.target.value)}
+                  placeholder="Nombre del analista que solicita"
+                />
+              </label>
+            </div>
+          </section>
 
-        <button className="btn" type="submit" disabled={status === 'sending'}>
-          {status === 'sending' ? 'Enviando…' : 'Enviar solicitud'}
-        </button>
-      </form>
-    </div>
+          <section className="form-section">
+            <div className="section-heading">
+              <span className="section-number">02</span>
+              <div><h3>Candidato/a</h3><p>Identificación y procedencia del postulante.</p></div>
+            </div>
+            <div className="field-grid">
+              <label className="field">
+                <span>Nombre del candidato/a <span className="req">*</span></span>
+                <input
+                  required
+                  value={form.nombreCandidato}
+                  onChange={(e) => update('nombreCandidato', e.target.value)}
+                  placeholder="Nombre y apellido"
+                />
+              </label>
+              <fieldset className="field">
+                <legend>Origen del candidato/a <span className="req">*</span></legend>
+                <div className="choice-group">
+                  {ORIGENES.map((o) => (
+                    <label key={o} className={`choice${form.origen === o ? ' choice--active' : ''}`}>
+                      <input
+                        type="radio"
+                        name="origen"
+                        required
+                        checked={form.origen === o}
+                        onChange={() => update('origen', o)}
+                      />
+                      <span className="choice-indicator" />
+                      {o}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+          </section>
+
+          <section className="form-section">
+            <div className="section-heading">
+              <span className="section-number">03</span>
+              <div><h3>Información del cargo</h3><p>Detalles de la posición a la que postula el candidato.</p></div>
+            </div>
+            <div className="field-grid">
+              <label className="field">
+                <span>Familia de cargo <span className="req">*</span></span>
+                <select required value={form.familiaCargo} onChange={(e) => update('familiaCargo', e.target.value)}>
+                  <option value="" disabled>Selecciona una familia</option>
+                  {FAMILIAS.map((f) => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span>Nombre del cargo <span className="req">*</span></span>
+                <input required value={form.nombreCargo} onChange={(e) => update('nombreCargo', e.target.value)} placeholder="Ej. Operador de Máquina" />
+              </label>
+              <label className="field">
+                <span>Ubicación del cargo <span className="req">*</span></span>
+                <input required list="ubicaciones" value={form.ubicacion} onChange={(e) => update('ubicacion', e.target.value)} placeholder="Planta, oficina o centro" />
+                <datalist id="ubicaciones">{UBICACIONES.map((u) => <option key={u} value={u} />)}</datalist>
+              </label>
+              <label className="field">
+                <span>Unidad</span>
+                <input list="unidades" value={form.unidad} onChange={(e) => update('unidad', e.target.value)} placeholder="Ej. Industrial" />
+                <datalist id="unidades">{UNIDADES.map((u) => <option key={u} value={u} />)}</datalist>
+              </label>
+              <label className="field">
+                <span>CECO <span className="field-hint">(Centro de costos)</span></span>
+                <input value={form.ceco} onChange={(e) => update('ceco', e.target.value)} placeholder="Ej. A170010301" />
+              </label>
+              <fieldset className="field">
+                <legend>¿Requiere referencias? <span className="req">*</span></legend>
+                <div className="choice-group">
+                  {SI_NO.map((s) => (
+                    <label key={s} className={`choice${form.requiereReferencias === s ? ' choice--active' : ''}`}>
+                      <input type="radio" name="requiereReferencias" checked={form.requiereReferencias === s} onChange={() => update('requiereReferencias', s)} />
+                      <span className="choice-indicator" />{s}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+          </section>
+
+          <section className="form-section">
+            <div className="section-heading">
+              <span className="section-number">04</span>
+              <div><h3>Documentación</h3><p>Adjunta los archivos necesarios para la evaluación.</p></div>
+            </div>
+            <div className="upload-grid">
+              <FileUpload
+                id="cv-upload"
+                title="Currículum vitae (CV)"
+                description="Arrastra el archivo aquí o selecciónalo desde tu equipo."
+                file={cvFile}
+                required
+                onChange={setCvFile}
+              />
+              <FileUpload
+                id="descriptor-upload"
+                title="Descriptor del cargo"
+                description="Documento complementario · Opcional."
+                file={descFile}
+                onChange={setDescFile}
+              />
+            </div>
+            <p className="file-guidance">Formatos permitidos: PDF, DOC y DOCX.</p>
+          </section>
+
+          <section className="form-section form-section--last">
+            <div className="section-heading">
+              <span className="section-number">05</span>
+              <div><h3>Información adicional</h3><p>Antecedentes que pueden orientar la entrevista psicolaboral.</p></div>
+            </div>
+            <div className="field-grid field-grid--single">
+              <fieldset className="field">
+                <legend>¿El candidato es referido?</legend>
+                <div className="choice-group">
+                  {SI_NO.map((s) => (
+                    <label key={s} className={`choice${form.esReferido === s ? ' choice--active' : ''}`}>
+                      <input type="radio" name="esReferido" checked={form.esReferido === s} onChange={() => update('esReferido', s)} />
+                      <span className="choice-indicator" />{s}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <label className="field">
+                <span>Aspectos a indagar / comentarios</span>
+                <textarea rows={4} value={form.aspectos} onChange={(e) => update('aspectos', e.target.value)} placeholder="Competencias o puntos que se recomienda profundizar durante la entrevista (opcional)." />
+              </label>
+            </div>
+          </section>
+
+          {errorMsg && (
+            <div className="error-message" role="alert">
+              <span aria-hidden="true">!</span>{errorMsg}
+            </div>
+          )}
+
+          <footer className="form-footer">
+            <p><span className="lock-mark" aria-hidden="true">▣</span> Verifica los antecedentes antes de enviar la solicitud.</p>
+            <button className="button button--primary" type="submit" disabled={status === 'sending'}>
+              {status === 'sending' ? <><span className="spinner" /> Enviando solicitud…</> : <>Enviar solicitud <span aria-hidden="true">→</span></>}
+            </button>
+          </footer>
+        </form>
+
+        <footer className="page-footer">
+          <span>AquaChile · Reclutamiento y Selección</span>
+          <span>Uso interno</span>
+        </footer>
+      </div>
+    </main>
   )
 }

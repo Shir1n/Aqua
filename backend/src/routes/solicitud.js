@@ -2,7 +2,7 @@ import { Router } from 'express'
 import multer from 'multer'
 import { db } from '../db.js'
 import { mkdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -17,16 +17,50 @@ const storage = multer.diskStorage({
   },
 })
 
-const upload = multer({ storage })
+// Ruta pública (formulario sin sesión): se limita tipo/tamaño de archivo y frecuencia de envío.
+const EXTENSIONES = new Set(['.pdf', '.doc', '.docx'])
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024, files: 2, fields: 20, fieldSize: 5000 },
+  fileFilter: (req, file, cb) => {
+    if (EXTENSIONES.has(extname(file.originalname).toLowerCase())) return cb(null, true)
+    const err = new Error('Formato no permitido: solo PDF, DOC o DOCX')
+    err.status = 400
+    cb(err)
+  },
+})
+const recibirArchivos = upload.fields([
+  { name: 'cv', maxCount: 1 },
+  { name: 'descriptor', maxCount: 1 },
+])
+
+const VENTANA_MS = 10 * 60 * 1000
+const MAX_ENVIOS = 20
+const envios = new Map()
+function limitarEnvios(req, res, next) {
+  const ahora = Date.now()
+  const lista = (envios.get(req.ip) || []).filter((t) => ahora - t < VENTANA_MS)
+  if (lista.length >= MAX_ENVIOS) return res.status(429).json({ error: 'Demasiadas solicitudes. Intenta nuevamente en unos minutos.' })
+  lista.push(ahora)
+  envios.set(req.ip, lista)
+  if (envios.size > 5000) for (const [k, v] of envios) if (!v.some((t) => ahora - t < VENTANA_MS)) envios.delete(k)
+  next()
+}
 
 const router = Router()
 
 router.post(
   '/',
-  upload.fields([
-    { name: 'cv', maxCount: 1 },
-    { name: 'descriptor', maxCount: 1 },
-  ]),
+  limitarEnvios,
+  (req, res, next) =>
+    recibirArchivos(req, res, (err) => {
+      if (!err) return next()
+      if (err instanceof multer.MulterError) {
+        const msg = err.code === 'LIMIT_FILE_SIZE' ? 'Cada archivo puede pesar como máximo 10 MB' : 'Archivos o campos no válidos'
+        return res.status(400).json({ error: msg })
+      }
+      next(err)
+    }),
   (req, res) => {
     const {
       reclutador,
@@ -45,6 +79,9 @@ router.post(
     const cv = req.files?.cv?.[0]
     const descriptor = req.files?.descriptor?.[0]
 
+    if (!cv) {
+      return res.status(400).json({ error: 'Debes adjuntar el CV del candidato (PDF, DOC o DOCX)' })
+    }
     if (!nombreCandidato || !familiaCargo || !nombreCargo) {
       return res
         .status(400)
@@ -96,17 +133,7 @@ router.post(
       creadoEn
     )
 
-    const solicitud = db
-      .prepare(
-        `SELECT s.*, c.nombre AS candidato_nombre, u.nombre AS responsable_nombre
-         FROM solicitudes s
-         JOIN candidatos c ON c.id = s.candidato_id
-         LEFT JOIN usuarios u ON u.id = s.responsable_id
-         WHERE s.id = ?`
-      )
-      .get(infoSolicitud.lastInsertRowid)
-
-    res.status(201).json(solicitud)
+    res.status(201).json({ id: Number(infoSolicitud.lastInsertRowid), mensaje: 'Solicitud registrada' })
   }
 )
 

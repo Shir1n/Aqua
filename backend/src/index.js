@@ -18,12 +18,13 @@ app.use(cors())
 app.use(express.json())
 
 app.use('/api/auth', authRoutes)
+// Formulario público de solicitud (app solicitud/): no requiere sesión.
+app.use('/api/solicitud', solicitudRoutes)
 app.use('/api', requireAuth)
 app.use('/api/extra', extraRoutes)
 app.use('/api/candidatos', candidatosRoutes)
 app.use('/api/solicitudes', solicitudesRoutes)
 app.use('/api/dashboard', dashboardRoutes)
-app.use('/api/solicitud', solicitudRoutes)
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada' })

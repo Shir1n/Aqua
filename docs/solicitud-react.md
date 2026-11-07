@@ -53,3 +53,13 @@ Definidas en `src/catalogs.ts`:
 - Crea una `solicitud` asociada con estado `Pendiente`.
 - Guarda el CV y el descriptor en `backend/data/uploads/`.
 - Los campos adicionales (reclutador, origen, ubicación, unidad, CECO, referencias, referido, aspectos) se almacenan en `observaciones` de la solicitud.
+
+## Acceso y límites
+
+`POST /api/solicitud` es la única ruta pública de la API (no requiere sesión), porque el formulario lo usan personas sin cuenta. Para protegerla:
+
+- Solo acepta archivos PDF, DOC o DOCX, de hasta 10 MB cada uno; el CV es obligatorio.
+- Máximo 20 envíos por IP cada 10 minutos.
+- Responde solo `{ id, mensaje }`, sin exponer datos internos.
+
+El resto de `/api` (incluido `/api/solicitudes`) sigue exigiendo inicio de sesión.
