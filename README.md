@@ -24,6 +24,8 @@ También puedes usar `make dev` si tienes `make` disponible; el Makefile instala
 
 **Datos:** Se incluye `backend/data/aqua.db` procedente del ZIP del usuario para conservar registros y cuentas de prueba. Es información sensible: no la publiques ni la envíes a terceros. Si ya tienes datos más nuevos en tu equipo, **no sobrescribas tu archivo `backend/data/aqua.db`**.
 
+**Inicio de sesión:** en una instalación nueva el backend asigna contraseñas iniciales a las cuentas de ejemplo y las imprime en su consola (copia en `backend/data/credenciales-iniciales.txt`). Entra como `admin@aqua.test` y, en *Administración de usuarios*, crea cuentas con contraseña o restablece las existentes. Ver `docs/registro-cuentas.md`.
+
 **Credenciales:** `backend/.env` está excluido deliberadamente. Debes conservar tu copia local segura y rotar la contraseña SMTP expuesta en el archivo de ejemplo original.
 
 **Verificación:** la estructura y sintaxis básica de rutas JS se revisaron; una prueba de extremo a extremo en Windows y la compilación de frontend deben hacerse localmente después de `npm ci`.

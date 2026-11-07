@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { db, ROLES } from '../db.js'
-import { requireRole, audit } from '../security.js'
+import { requireRole, audit, passwordHash } from '../security.js'
 const router=Router()
 const now=()=>new Date().toISOString()
 function notify(userId,title,descripcion,enlace='') {
@@ -48,6 +48,31 @@ router.patch('/usuarios/:id',requireRole('Administrador'),(req,res)=>{
  db.prepare('DELETE FROM sesiones WHERE usuario_id=?').run(id)
  audit(req,'Usuario actualizado',`Usuario #${id}: ${rol??u.rol}, activo=${activo??Boolean(u.activo)}`)
  res.json({mensaje:'Usuario actualizado; sus sesiones se cerraron'})
+})
+const correoValido=/^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const claveValida=(c)=>typeof c==='string'&&c.length>=12&&c.length<=128
+router.post('/usuarios',requireRole('Administrador'),(req,res)=>{
+ const {nombre,rol,contrasena}=req.body||{}
+ const correo=String(req.body?.correo||'').trim().toLowerCase()
+ if(typeof nombre!=='string'||nombre.trim().length<2||nombre.trim().length>100)return res.status(400).json({error:'El nombre debe tener entre 2 y 100 caracteres'})
+ if(!correoValido.test(correo))return res.status(400).json({error:'Correo inválido'})
+ if(!ROLES.includes(rol))return res.status(400).json({error:'Rol inválido'})
+ if(!claveValida(contrasena))return res.status(400).json({error:'La contraseña debe tener entre 12 y 128 caracteres'})
+ if(db.prepare('SELECT id FROM usuarios WHERE lower(correo)=?').get(correo))return res.status(409).json({error:'Ya existe una cuenta con ese correo'})
+ const r=db.prepare('INSERT INTO usuarios(nombre,correo,rol,password_hash,verificado,activo) VALUES(?,?,?,?,1,1)').run(nombre.trim(),correo,rol,passwordHash(contrasena))
+ audit(req,'Usuario creado',`Usuario #${r.lastInsertRowid}: ${correo} (${rol})`)
+ res.status(201).json({id:Number(r.lastInsertRowid),mensaje:'Usuario creado; ya puede iniciar sesión con su contraseña'})
+})
+router.put('/usuarios/:id/clave',requireRole('Administrador'),(req,res)=>{
+ const id=Number(req.params.id),{contrasena}=req.body||{}
+ const u=db.prepare('SELECT id,correo FROM usuarios WHERE id=?').get(id)
+ if(!u)return res.status(404).json({error:'Usuario no encontrado'})
+ if(id===req.user.id)return res.status(400).json({error:'Para tu propia cuenta usa "Cambiar contraseña" en tu perfil'})
+ if(!claveValida(contrasena))return res.status(400).json({error:'La contraseña debe tener entre 12 y 128 caracteres'})
+ db.prepare('UPDATE usuarios SET password_hash=?,verificado=1 WHERE id=?').run(passwordHash(contrasena),id)
+ db.prepare('DELETE FROM sesiones WHERE usuario_id=?').run(id)
+ audit(req,'Contraseña restablecida',`Usuario #${id}: ${u.correo}`)
+ res.json({mensaje:'Contraseña restablecida; las sesiones del usuario se cerraron'})
 })
 router.get('/auditoria',requireRole('Administrador'),(req,res)=>res.json(db.prepare('SELECT a.*,u.nombre AS usuario_nombre FROM auditoria a LEFT JOIN usuarios u ON u.id=a.usuario_id ORDER BY a.id DESC LIMIT 80').all()))
 router.get('/recordatorios',(req,res)=>{
