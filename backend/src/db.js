@@ -1,7 +1,8 @@
 import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, appendFileSync } from 'node:fs'
+import { randomBytes, scryptSync } from 'node:crypto'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const dataDir = join(__dirname, '..', 'data')
@@ -80,6 +81,28 @@ export function initDb() {
   `)
   for (const [col, ddl] of [['competencias','ALTER TABLE evaluaciones ADD COLUMN competencias TEXT'], ['recomendaciones','ALTER TABLE evaluaciones ADD COLUMN recomendaciones TEXT'], ['borrador','ALTER TABLE evaluaciones ADD COLUMN borrador INTEGER NOT NULL DEFAULT 1']]) { try { db.exec(ddl) } catch {} }
   seed()
+  asignarClavesIniciales()
+}
+
+export const CREDENCIALES_PATH = join(dataDir, 'credenciales-iniciales.txt')
+
+// Las cuentas sin contraseña (p. ej. las del seed) no pueden iniciar sesión.
+// Se les asigna una contraseña aleatoria, que se muestra una sola vez en consola
+// y se guarda en backend/data/credenciales-iniciales.txt (carpeta ignorada por git).
+function asignarClavesIniciales() {
+  const sinClave = db.prepare("SELECT id, correo, rol FROM usuarios WHERE password_hash IS NULL OR password_hash = ''").all()
+  if (!sinClave.length) return
+  const update = db.prepare('UPDATE usuarios SET password_hash = ?, verificado = 1 WHERE id = ?')
+  const lineas = []
+  for (const u of sinClave) {
+    const clave = randomBytes(9).toString('base64url')
+    const salt = randomBytes(16).toString('hex')
+    update.run(`scrypt:${salt}:${scryptSync(clave, salt, 64).toString('hex')}`, u.id)
+    lineas.push(`${u.correo.padEnd(28)} ${u.rol.padEnd(14)} ${clave}`)
+  }
+  const bloque = `# ${new Date().toISOString()} — contraseñas iniciales (cámbialas tras el primer ingreso)\n${lineas.join('\n')}\n\n`
+  appendFileSync(CREDENCIALES_PATH, bloque, { encoding: 'utf8', mode: 0o600 })
+  console.log(`[SIGMA-Aqua] Se asignaron contraseñas iniciales a ${sinClave.length} cuenta(s):\n${lineas.map(l => '  ' + l).join('\n')}\n  (copia guardada en ${CREDENCIALES_PATH})`)
 }
 
 function seed() {
