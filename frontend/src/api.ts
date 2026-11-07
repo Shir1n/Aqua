@@ -41,7 +41,26 @@ export interface EvaluacionInput {
   borrador?: boolean
 }
 
+// Descarga autenticada (un <a href> no envía el token de sesión).
+async function descargarArchivo(path: string, nombre: string) {
+  const token = localStorage.getItem('aqua.token')
+  const res = await fetch(path, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || `Error ${res.status}`)
+  }
+  const url = URL.createObjectURL(await res.blob())
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nombre
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 export const api = {
+  descargarDocumento: (id: number, nombre: string) => descargarArchivo(`/api/documentos/${id}/descargar`, nombre),
   me: () => request<Usuario>('/api/auth/me'),
   logout: () => request<void>('/api/auth/logout',{method:'POST'}),
   getNotificaciones: () => request<Notificacion[]>('/api/extra/notificaciones'),

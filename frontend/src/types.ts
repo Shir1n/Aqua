@@ -45,6 +45,22 @@ export interface Solicitud {
   observaciones: string
   creado_en: string
   evaluacion?: Evaluacion | null
+  documentos?: Documento[]
+  carpeta?: string | null
+  reclutador?: string | null
+  origen?: string | null
+  ubicacion?: string | null
+  unidad?: string | null
+  ceco?: string | null
+  requiere_referencias?: string | null
+  es_referido?: string | null
+}
+
+export interface Documento {
+  id: number
+  tipo: 'cv' | 'descriptor' | 'informe' | 'pauta' | 'formulario'
+  nombre: string
+  creado_en: string
 }
 
 export interface Dashboard {

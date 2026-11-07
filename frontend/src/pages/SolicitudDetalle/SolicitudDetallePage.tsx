@@ -1,8 +1,8 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams, useLocation } from 'react-router-dom'
 import { api } from '../../api'
 import { ESTADOS, RESULTADOS } from '../../catalogs'
-import type { Candidato, Solicitud } from '../../types'
+import type { Candidato, Documento, Solicitud } from '../../types'
 import { useAuth } from '../../AuthContext'
 import { abrirInformeSolicitud } from '../../utils/informeSolicitud'
 
@@ -15,6 +15,14 @@ function estadoBadge(estado: string) {
   return map[estado] ?? 'secondary'
 }
 
+const TIPO_DOCUMENTO: Record<Documento['tipo'], string> = {
+  cv: 'Currículum (CV)',
+  descriptor: 'Descriptor del cargo',
+  informe: 'Plantilla de informe',
+  pauta: 'Pauta de entrevista',
+  formulario: 'Formulario recibido',
+}
+
 export default function SolicitudDetalle() {
   const { id } = useParams()
   const location = useLocation()
@@ -24,8 +32,11 @@ export default function SolicitudDetalle() {
   const [solicitud, setSolicitud] = useState<Solicitud | null>(null)
   const [candidato, setCandidato] = useState<Candidato | null>(null)
   const { user } = useAuth()
+  const [loadError, setLoadError] = useState('')
   const [error, setError] = useState('')
   const [msg, setMsg] = useState('')
+  const avisar = (ok: string) => { setError(''); setMsg(ok) }
+  const fallar = (e: unknown, porDefecto: string) => { setMsg(''); setError(e instanceof Error ? e.message : porDefecto) }
 
   const [evalForm, setEvalForm] = useState({
     fechaEvaluacion: '',
@@ -54,7 +65,7 @@ export default function SolicitudDetalle() {
         })
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al cargar')
+      setLoadError(e instanceof Error ? e.message : 'Error al cargar')
     }
   }
 
@@ -65,17 +76,26 @@ export default function SolicitudDetalle() {
   function descargarResumen() {
     if (!solicitud) return
     if (!abrirInformeSolicitud(solicitud, candidato, user)) {
-      setError('El navegador bloqueó la ventana del informe. Permite ventanas emergentes para SIGMA-Aqua e inténtalo de nuevo.')
+      fallar(null, 'El navegador bloqueó la ventana del informe. Permite ventanas emergentes para SIGMA-Aqua e inténtalo de nuevo.')
     }
   }
 
   async function onEstadoChange(estado: string) {
     try {
-      await api.updateSolicitud(Number(id), { estado })
-      setMsg('Estado actualizado')
+      // Misma ruta que el Kanban: valida que no se cierre sin evaluación final.
+      await api.actualizarEstado(Number(id), estado)
+      avisar('Estado actualizado')
       load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al actualizar')
+      fallar(e, 'Error al actualizar')
+    }
+  }
+
+  async function descargar(doc: Documento) {
+    try {
+      await api.descargarDocumento(doc.id, doc.nombre)
+    } catch (e) {
+      fallar(e, 'No se pudo descargar el documento')
     }
   }
 
@@ -83,14 +103,14 @@ export default function SolicitudDetalle() {
     e.preventDefault()
     try {
       await api.saveEvaluacion(Number(id), evalForm)
-      setMsg('Evaluación registrada')
+      avisar('Evaluación registrada')
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al registrar evaluación')
+      fallar(err, 'Error al registrar evaluación')
     }
   }
 
-  if (error) return <div className="alert alert-danger">{error}</div>
+  if (loadError) return <div className="alert alert-danger">{loadError}</div>
   if (!solicitud) return <p className="text-muted">Cargando…</p>
 
   return (
@@ -133,9 +153,41 @@ export default function SolicitudDetalle() {
                 <dd className="col-7">{solicitud.fecha_solicitud}</dd>
                 <dt className="col-5">Responsable</dt>
                 <dd className="col-7">{solicitud.responsable_nombre ?? 'Sin asignar'}</dd>
+                {([
+                  ['Reclutador/a', solicitud.reclutador],
+                  ['Origen', solicitud.origen],
+                  ['Ubicación', solicitud.ubicacion],
+                  ['Unidad', solicitud.unidad],
+                  ['CECO', solicitud.ceco],
+                  ['Requiere referencias', solicitud.requiere_referencias],
+                  ['Referido', solicitud.es_referido],
+                ] as const).filter(([, v]) => v).map(([k, v]) => (
+                  <Fragment key={k}>
+                    <dt className="col-5">{k}</dt>
+                    <dd className="col-7">{v}</dd>
+                  </Fragment>
+                ))}
                 <dt className="col-5">Observaciones</dt>
-                <dd className="col-7">{solicitud.observaciones || '—'}</dd>
+                <dd className="col-7" style={{ whiteSpace: 'pre-line' }}>{solicitud.observaciones || '—'}</dd>
               </dl>
+
+              <hr />
+              <label className="form-label">Documentos</label>
+              {solicitud.documentos?.length ? (
+                <ul className="list-group mb-1">
+                  {solicitud.documentos.map((d) => (
+                    <li key={d.id} className="list-group-item d-flex justify-content-between align-items-center gap-2">
+                      <span className="text-truncate">
+                        <strong className="d-block small">{TIPO_DOCUMENTO[d.tipo] ?? d.tipo}</strong>
+                        <span className="text-muted small">{d.nombre}</span>
+                      </span>
+                      <button type="button" className="btn btn-sm btn-outline-primary flex-shrink-0" onClick={() => descargar(d)}>Descargar</button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted small mb-0">Esta solicitud no tiene documentos adjuntos.</p>
+              )}
 
               <hr />
               <label className="form-label">Actualizar estado</label>
