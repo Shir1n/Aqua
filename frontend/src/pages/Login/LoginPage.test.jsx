@@ -1,83 +1,121 @@
-import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-import Login from './LoginPage'
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import Login from './LoginPage';
 
-// Mockeamos lo que Login usa desde fuera de sí mismo.
 const mocks = vi.hoisted(() => ({
-  navigate: vi.fn(),
+  apiLogin: vi.fn(),
   login: vi.fn(),
-}))
+}));
 
-vi.mock('react-router-dom', () => ({
-  useNavigate: () => mocks.navigate,
-}))
+vi.mock('../../api', () => ({
+  api: { login: mocks.apiLogin },
+}));
 
 vi.mock('../../AuthContext', () => ({
   useAuth: () => ({ login: mocks.login }),
-}))
+}));
 
 beforeEach(() => {
-  mocks.navigate.mockReset()
-  mocks.login.mockReset()
-})
+  mocks.apiLogin.mockReset();
+  mocks.login.mockReset();
+});
 
-// Dispara el submit directamente sobre el <form>, saltando la validación
-// nativa de "required" para poder probar la validación propia del componente.
-function submitForm() {
-  const form = screen.getByRole('button', { name: 'Ingresar' }).closest('form')
-  fireEvent.submit(form)
+function renderLogin() {
+  return render(
+    <MemoryRouter initialEntries={['/login']}>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<h1>Dashboard</h1>} />
+      </Routes>
+    </MemoryRouter>
+  );
 }
 
 describe('LoginPage', () => {
-  test('renderiza los campos de usuario, contraseña y el botón Ingresar', () => {
-    render(<Login />)
+  it('renderiza el formulario completo', () => {
+    renderLogin();
 
-    expect(screen.getByLabelText('Usuario')).toBeInTheDocument()
-    expect(screen.getByLabelText('Contraseña')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Ingresar' })).toBeInTheDocument()
-  })
+    expect(screen.getByRole('heading', { name: '¡Bienvenido!' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Correo')).toBeInTheDocument();
+    expect(screen.getByLabelText('Contraseña')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ingresar' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Recordarme' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Regístrate' })).toBeInTheDocument();
+  });
 
-  test('muestra un error al enviar con ambos campos vacíos', () => {
-    render(<Login />)
+  it('no inicia sesión con los campos vacíos', async () => {
+    renderLogin();
 
-    submitForm()
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Ingresar' }));
+
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+    expect(mocks.apiLogin).not.toHaveBeenCalled();
+    expect(mocks.login).not.toHaveBeenCalled();
+  });
+
+  it('muestra error cuando los campos son solo espacios', async () => {
+    renderLogin();
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Correo'), '   ');
+    await user.type(screen.getByLabelText('Contraseña'), '   ');
+    await user.click(screen.getByRole('button', { name: 'Ingresar' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Por favor, completa el usuario y la contraseña',
-    )
-    expect(mocks.login).not.toHaveBeenCalled()
-    expect(mocks.navigate).not.toHaveBeenCalled()
-  })
+      'completa el usuario y la contraseña',
+    );
+    expect(mocks.apiLogin).not.toHaveBeenCalled();
+    expect(mocks.login).not.toHaveBeenCalled();
+  });
 
-  test('muestra un error si falta la contraseña', () => {
-    render(<Login />)
+  it('inicia sesión y navega a "/" con credenciales válidas', async () => {
+    const usuarioMock = {
+      id: 1,
+      nombre: 'Ana',
+      correo: 'ana@aqua.cl',
+      rol: 'Administrador',
+      token: 'abc123',
+    };
+    mocks.apiLogin.mockResolvedValue(usuarioMock);
 
-    fireEvent.change(screen.getByLabelText('Usuario'), { target: { value: 'admin' } })
-    submitForm()
+    renderLogin();
 
-    expect(screen.getByRole('alert')).toBeInTheDocument()
-    expect(mocks.login).not.toHaveBeenCalled()
-  })
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Correo'), 'ana@aqua.cl');
+    await user.type(screen.getByLabelText('Contraseña'), 'secreto');
+    await user.click(screen.getByRole('button', { name: 'Ingresar' }));
 
-  test('hace login y navega a "/" cuando los campos están completos', () => {
-    render(<Login />)
+    expect(mocks.apiLogin).toHaveBeenCalledWith('ana@aqua.cl', 'secreto');
+    expect(mocks.login).toHaveBeenCalledWith(usuarioMock);
+    expect(await screen.findByText('Dashboard')).toBeInTheDocument();
+  });
 
-    fireEvent.change(screen.getByLabelText('Usuario'), { target: { value: 'admin' } })
-    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: '123456' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
+  it('muestra error cuando la API rechaza el login', async () => {
+    mocks.apiLogin.mockRejectedValue(new Error('Credenciales inválidas'));
 
-    expect(mocks.login).toHaveBeenCalledTimes(1)
-    expect(mocks.navigate).toHaveBeenCalledWith('/')
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-  })
+    renderLogin();
 
-  test('el botón del ojo alterna la visibilidad de la contraseña', () => {
-    render(<Login />)
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Correo'), 'ana@aqua.cl');
+    await user.type(screen.getByLabelText('Contraseña'), 'mal');
+    await user.click(screen.getByRole('button', { name: 'Ingresar' }));
 
-    const inputContrasena = screen.getByLabelText('Contraseña')
-    expect(inputContrasena).toHaveAttribute('type', 'password')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Credenciales inválidas');
+    expect(mocks.login).not.toHaveBeenCalled();
+    expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mostrar contraseña' }))
-    expect(inputContrasena).toHaveAttribute('type', 'text')
-  })
-})
+  it('el botón del ojo alterna la visibilidad de la contraseña', async () => {
+    renderLogin();
+
+    const user = userEvent.setup();
+    const inputContrasena = screen.getByLabelText('Contraseña');
+    expect(inputContrasena).toHaveAttribute('type', 'password');
+
+    await user.click(screen.getByRole('button', { name: 'Mostrar contraseña' }));
+    expect(inputContrasena).toHaveAttribute('type', 'text');
+  });
+});
