@@ -28,8 +28,8 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
     setMensaje('')
-    if (contrasena.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.')
+    if (contrasena.length < 12) {
+      setError('La contraseña debe tener al menos 12 caracteres.')
       return
     }
     if (contrasena !== confirmar) {
@@ -106,9 +106,9 @@ export default function RegisterPage() {
                 </select>
                 <p className="register-role-hint">Los roles de Jefatura y Administrador se asignan únicamente mediante autorización administrativa.</p>
                 <label htmlFor="registro-contrasena">Contraseña</label>
-                <input id="registro-contrasena" type="password" value={contrasena} onChange={e => setContrasena(e.target.value)} autoComplete="new-password" required minLength={8} />
+                <input id="registro-contrasena" type="password" value={contrasena} onChange={e => setContrasena(e.target.value)} autoComplete="new-password" required minLength={12} maxLength={128} />
                 <label htmlFor="registro-confirmar">Confirmar contraseña</label>
-                <input id="registro-confirmar" type="password" value={confirmar} onChange={e => setConfirmar(e.target.value)} autoComplete="new-password" required minLength={8} />
+                <input id="registro-confirmar" type="password" value={confirmar} onChange={e => setConfirmar(e.target.value)} autoComplete="new-password" required minLength={12} maxLength={128} />
                 {error && <p className="register-alert register-error" role="alert">{error}</p>}
                 <button className="register-submit" type="submit" disabled={cargando}>{cargando ? 'Enviando...' : 'Crear cuenta'}</button>
               </form>

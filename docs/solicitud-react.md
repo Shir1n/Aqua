@@ -72,3 +72,9 @@ Definidas en `src/catalogs.ts`:
 - En el panel, el detalle de la solicitud lista los documentos y permite descargarlos (`GET /api/documentos/:id/descargar`, con sesión).
 
 El resto de `/api` (incluido `/api/solicitudes`) sigue exigiendo inicio de sesión.
+
+## Solicitudes creadas desde el panel
+
+`POST /api/solicitudes` (panel, con sesión) también crea la carpeta con el formulario y las plantillas de informe y pauta. El CV y el descriptor se adjuntan al crearla o después desde el detalle (`POST /api/solicitudes/:id/documentos`, roles Administrador, Analista y Jefatura); subir uno nuevo reemplaza al anterior. Si una solicitud antigua no tiene carpeta, se crea al adjuntar el primer documento.
+
+Al eliminar un candidato se borran sus solicitudes, sus documentos y las carpetas en disco; la acción queda en la auditoría.

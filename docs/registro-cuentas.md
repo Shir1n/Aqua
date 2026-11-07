@@ -9,3 +9,6 @@
 - El administrador puede, en **Administración de usuarios** (`/usuarios`), crear usuarios con contraseña (sin SMTP) y restablecer la contraseña de cualquier otro usuario (mínimo 12 caracteres; se cierran sus sesiones).
 - Alternativa por consola: `node backend/scripts/establecer-clave.js correo@dominio.cl`.
 - Ver `SOLUCION_DE_PROBLEMAS.md` para diagnóstico.
+- Todas las contraseñas (registro, cambio desde el perfil y las que asigna el administrador) deben tener entre 12 y 128 caracteres.
+- En el login, **Recordarme** mantiene la sesión al cerrar el navegador; sin marcarlo, la sesión termina al cerrarlo. **¿Olvidaste tu contraseña?** indica pedir el restablecimiento a un administrador.
+- El correo del registro se configura en `backend/.env`, a partir de `backend/.env.example` (ver `INSTRUCCIONES_CORREO.md`).

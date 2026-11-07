@@ -13,6 +13,7 @@ export default function Login() {
   const [mostrarContrasena, setMostrarContrasena] = useState(false)
   const [recordarme, setRecordarme] = useState(false)
   const [errorLogin, setErrorLogin] = useState('')
+  const [ayudaClave, setAyudaClave] = useState(false)
 
   const pageStyle: CSSProperties = {
     minHeight: '100vh',
@@ -162,7 +163,11 @@ export default function Login() {
   }
 
   const forgotStyle: CSSProperties = {
-    marginTop: 18,
+    display: 'block',
+    margin: '18px auto 0',
+    padding: 0,
+    border: 0,
+    background: 'transparent',
     textAlign: 'center',
     color: '#344451',
     fontSize: 16,
@@ -208,7 +213,7 @@ export default function Login() {
     }
 
     setErrorLogin('')
-    try { const u = await api.login(usuario.trim(), contrasena); login(u); navigate('/') } catch (err) { setErrorLogin(err instanceof Error ? err.message : 'No se pudo iniciar sesión') }
+    try { const u = await api.login(usuario.trim(), contrasena); login(u, recordarme); navigate('/') } catch (err) { setErrorLogin(err instanceof Error ? err.message : 'No se pudo iniciar sesión') }
   }
 
   return (
@@ -305,7 +310,14 @@ export default function Login() {
               </p>
             )}
 
-            <div style={forgotStyle}>¿Olvidaste tu contraseña?</div>
+            <button type="button" style={forgotStyle} aria-expanded={ayudaClave} onClick={() => setAyudaClave((v) => !v)}>
+              ¿Olvidaste tu contraseña?
+            </button>
+            {ayudaClave && (
+              <p role="status" style={{ margin: '10px 0 0', padding: '10px 12px', borderRadius: 8, background: '#EEF4F8', color: '#344451', fontSize: 14, textAlign: 'center' }}>
+                Pide a un administrador de SIGMA-Aqua que restablezca tu contraseña desde <strong>Administración de usuarios</strong>. Después podrás cambiarla en tu perfil.
+              </p>
+            )}
 
             <label style={rememberStyle}>
               <input

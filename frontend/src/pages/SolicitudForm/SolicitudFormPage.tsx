@@ -19,6 +19,8 @@ export default function SolicitudForm() {
   })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [cv, setCv] = useState<File | null>(null)
+  const [descriptor, setDescriptor] = useState<File | null>(null)
 
   useEffect(() => {
     api.listCandidatos().then(setCandidatos).catch(() => setError('No se pudieron cargar los candidatos'))
@@ -47,7 +49,7 @@ export default function SolicitudForm() {
     setSaving(true)
     setError('')
     try {
-      await api.createSolicitud({
+      const creada = await api.createSolicitud({
         candidatoId: Number(form.candidatoId),
         cargo: form.cargo,
         familiaCargo: form.familiaCargo,
@@ -56,6 +58,17 @@ export default function SolicitudForm() {
         responsableId: form.responsableId ? Number(form.responsableId) : null,
         observaciones: form.observaciones,
       })
+      if (cv || descriptor) {
+        try {
+          await api.subirDocumentos(creada.id, { cv, descriptor })
+        } catch (err) {
+          const motivo = err instanceof Error ? err.message : 'Error al subir'
+          navigate(`/solicitudes/${creada.id}`, { state: { aviso: `La solicitud se creó, pero no se pudieron adjuntar los documentos (${motivo}). Adjúntalos desde aquí.` } })
+          return
+        }
+        navigate(`/solicitudes/${creada.id}`)
+        return
+      }
       navigate('/solicitudes')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar')
@@ -150,7 +163,7 @@ export default function SolicitudForm() {
           <div className="mb-3">
             <label className="form-label">Estado</label>
             <select className="form-select" value={form.estado} onChange={(e) => update('estado', e.target.value)}>
-              {ESTADOS.map((s) => (
+              {ESTADOS.filter((s) => s !== 'Finalizada').map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
@@ -166,6 +179,19 @@ export default function SolicitudForm() {
               value={form.observaciones}
               onChange={(e) => update('observaciones', e.target.value)}
             />
+          </div>
+
+          <div className="sigma-section-heading"><span className="sigma-section-number">04</span><div><h2>Documentos</h2><p>Se crea la carpeta con las plantillas de informe y pauta. Puedes adjuntar el CV ahora o después, desde el detalle.</p></div></div>
+          <div className="row sigma-form-row">
+            <div className="col-md-6 mb-3">
+              <label className="form-label" htmlFor="sol-cv">Currículum (CV)</label>
+              <input id="sol-cv" className="form-control" type="file" accept=".pdf,.doc,.docx" onChange={(e) => setCv(e.target.files?.[0] ?? null)} />
+            </div>
+            <div className="col-md-6 mb-3">
+              <label className="form-label" htmlFor="sol-descriptor">Descriptor del cargo</label>
+              <input id="sol-descriptor" className="form-control" type="file" accept=".pdf,.doc,.docx" onChange={(e) => setDescriptor(e.target.files?.[0] ?? null)} />
+            </div>
+            <p className="text-muted small mb-3">PDF, DOC o DOCX, hasta 10 MB cada uno.</p>
           </div>
 
           <div className="sigma-form-actions"><span>Los campos con * son obligatorios.</span><div className="d-flex gap-2">

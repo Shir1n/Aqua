@@ -89,7 +89,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: 'Ingresar' }));
 
     expect(mocks.apiLogin).toHaveBeenCalledWith('ana@aqua.cl', 'secreto');
-    expect(mocks.login).toHaveBeenCalledWith(usuarioMock);
+    expect(mocks.login).toHaveBeenCalledWith(usuarioMock, false);
     expect(await screen.findByText('Dashboard')).toBeInTheDocument();
   });
 

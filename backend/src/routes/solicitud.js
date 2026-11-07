@@ -1,50 +1,13 @@
 import { Router } from 'express'
-import multer from 'multer'
-import { randomUUID } from 'node:crypto'
-import { rmSync, unlinkSync } from 'node:fs'
-import { extname } from 'node:path'
+import { rmSync } from 'node:fs'
 import { db } from '../db.js'
-import { CODIGOS_FAMILIA, UPLOADS_TMP_DIR, crearCarpetaSolicitud } from '../carpetas.js'
+import { CODIGOS_FAMILIA, crearCarpetaSolicitud } from '../carpetas.js'
+import { borrarTemporales, recibirArchivos } from '../subidas.js'
+import { prellenarInformeSeguro } from '../informe.js'
+import { asincrono } from '../asincrono.js'
 import { notify } from './extra.js'
 
-// Ruta pública (formulario sin sesión): se limita tipo/tamaño de archivo y frecuencia de envío.
-const EXTENSIONES_PERMITIDAS = new Set(['.pdf', '.doc', '.docx'])
-const MAX_MB = 10
-
-// Los archivos llegan a una carpeta temporal y luego se mueven a la carpeta de la solicitud.
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, UPLOADS_TMP_DIR),
-    filename: (req, file, cb) => cb(null, `${randomUUID()}${extname(file.originalname).toLowerCase()}`),
-  }),
-  limits: { fileSize: MAX_MB * 1024 * 1024, files: 2, fields: 20, fieldSize: 5000 },
-  fileFilter: (req, file, cb) => {
-    if (EXTENSIONES_PERMITIDAS.has(extname(file.originalname).toLowerCase())) return cb(null, true)
-    cb(Object.assign(new Error('Formato no permitido: solo PDF, DOC o DOCX'), { status: 400 }))
-  },
-}).fields([
-  { name: 'cv', maxCount: 1 },
-  { name: 'descriptor', maxCount: 1 },
-])
-
-function recibirArchivos(req, res, next) {
-  upload(req, res, (err) => {
-    if (!err) return next()
-    borrarTemporales(req.files)
-    if (err instanceof multer.MulterError) {
-      const msg = err.code === 'LIMIT_FILE_SIZE' ? `Cada archivo puede pesar como máximo ${MAX_MB} MB` : 'Archivos o campos no válidos'
-      return res.status(400).json({ error: msg })
-    }
-    next(err)
-  })
-}
-
-function borrarTemporales(files) {
-  for (const f of Object.values(files || {}).flat()) {
-    try { unlinkSync(f.path) } catch { /* ya movido o inexistente */ }
-  }
-}
-
+// Ruta pública (formulario sin sesión): se limita tipo/tamaño de archivo (subidas.js) y frecuencia de envío.
 const VENTANA_MS = 10 * 60 * 1000
 const MAX_ENVIOS = 20
 const envios = new Map()
@@ -62,7 +25,7 @@ const texto = (v) => (typeof v === 'string' ? v.trim() : '')
 
 const router = Router()
 
-router.post('/', limitarEnvios, recibirArchivos, (req, res, next) => {
+router.post('/', limitarEnvios, recibirArchivos, asincrono(async (req, res, next) => {
   const body = req.body || {}
   const campos = {
     reclutador: texto(body.reclutador),
@@ -93,6 +56,7 @@ router.post('/', limitarEnvios, recibirArchivos, (req, res, next) => {
   const creadoEn = new Date().toISOString()
   let carpetaCreada = null
   let solicitudId
+  let documentosCreados = []
 
   db.exec('BEGIN')
   try {
@@ -129,6 +93,7 @@ router.post('/', limitarEnvios, recibirArchivos, (req, res, next) => {
       },
     })
     carpetaCreada = resultado.carpetaAbs
+    documentosCreados = resultado.documentos
 
     db.prepare('UPDATE solicitudes SET carpeta = ? WHERE id = ?').run(resultado.carpeta, solicitudId)
     const insertDoc = db.prepare('INSERT INTO documentos (solicitud_id, tipo, nombre, ruta, creado_en) VALUES (?, ?, ?, ?, ?)')
@@ -152,7 +117,12 @@ router.post('/', limitarEnvios, recibirArchivos, (req, res, next) => {
     return next(err)
   }
 
+  const aviso = await prellenarInformeSeguro(documentosCreados, { candidato: campos.nombreCandidato, cargo: campos.nombreCargo, familiaCargo: campos.familiaCargo })
+  if (aviso) {
+    db.prepare('INSERT INTO historial_solicitudes (solicitud_id, accion, detalle, usuario, creado_en) VALUES (?, ?, ?, ?, ?)')
+      .run(solicitudId, 'Advertencia', aviso, 'Sistema', new Date().toISOString())
+  }
   res.status(201).json({ id: solicitudId, mensaje: 'Solicitud registrada' })
-})
+}))
 
 export default router

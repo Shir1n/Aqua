@@ -8,6 +8,7 @@ import { useAuth } from '../AuthContext'
 import Notificaciones from './Notificaciones'
 import { api } from '../api'
 import type { Candidato, Solicitud } from '../types'
+import { getToken } from '../session'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `side-nav-link${isActive ? ' active' : ''}`
@@ -116,7 +117,7 @@ export default function Layout() {
     setProfileName(user?.nombre ?? '')
     setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
     if (next === 'actividad') {
-      const token = localStorage.getItem('aqua.token') || ''
+      const token = getToken()
       fetch('/api/auth/mi-actividad', {headers:{Authorization:`Bearer ${token}`}})
         .then(async r => {if (!r.ok) throw new Error('No se pudo consultar la actividad'); return r.json()})
         .then(setActivity).catch(e => setFeedback(e.message))
@@ -128,7 +129,7 @@ export default function Layout() {
     if (panel === 'clave' && newPassword !== confirmPassword) {setFeedback('Las contraseñas no coinciden'); return}
     setSaving(true); setFeedback('')
     try {
-      const token = localStorage.getItem('aqua.token') || ''
+      const token = getToken()
       const response = await fetch(panel === 'perfil' ? '/api/auth/perfil' : '/api/auth/cambiar-clave', {
         method: panel === 'perfil' ? 'PATCH' : 'POST',
         headers: {'Content-Type':'application/json', Authorization:`Bearer ${token}`},

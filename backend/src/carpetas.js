@@ -109,3 +109,27 @@ export function crearCarpetaSolicitud({ solicitudId, nombreCandidato, familiaCar
     advertencias,
   }
 }
+
+const PREFIJO_ARCHIVO = { cv: 'CV', descriptor: 'Descriptor' }
+
+/**
+ * Mueve un archivo subido (CV o descriptor) a una carpeta de solicitud que ya existe.
+ * Devuelve el documento a registrar. Si ya había uno del mismo tipo con el mismo nombre,
+ * se sobrescribe; el llamador borra el registro y el archivo anteriores.
+ */
+export function guardarArchivoEnCarpeta({ carpeta, nombreCandidato, tipo, file }) {
+  const carpetaAbs = rutaAbsoluta(carpeta)
+  if (!existsSync(carpetaAbs)) mkdirSync(carpetaAbs, { recursive: true })
+  const nombre = `${PREFIJO_ARCHIVO[tipo]}_${normalizarNombre(nombreCandidato)}${extname(file.originalname).toLowerCase()}`
+  const destino = join(carpetaAbs, nombre)
+  renameSync(file.path, destino)
+  return { tipo, nombre, ruta: relative(DATA_DIR, destino).split(sep).join('/') }
+}
+
+/** Borra la carpeta de una solicitud (ruta relativa a DATA_DIR). No falla si no existe. */
+export function borrarCarpeta(carpeta) {
+  if (!carpeta) return
+  const abs = rutaAbsoluta(carpeta)
+  if (!abs.startsWith(SOLICITUDES_DIR + sep)) return
+  rmSync(abs, { recursive: true, force: true })
+}
