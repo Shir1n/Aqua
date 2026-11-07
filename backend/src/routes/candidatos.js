@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { db } from '../db.js'
 import { requireRole, audit } from '../security.js'
+import { borrarCarpeta } from '../carpetas.js'
 
 const router = Router()
 
@@ -68,12 +69,22 @@ router.put('/:id', requireRole('Administrador','Analista','Jefatura'), (req, res
     req.params.id
   )
   const row = db.prepare('SELECT * FROM candidatos WHERE id = ?').get(req.params.id)
+  const cambios = [['nombre', nombre, 'nombre'], ['correo', correo, 'correo'], ['telefono', telefono, 'teléfono'], ['cargo', cargo, 'cargo'], ['familia_cargo', familiaCargo, 'familia']]
+    .filter(([col, v]) => v !== undefined && v !== existing[col]).map(([, , etiqueta]) => etiqueta)
+  if (cambios.length) audit(req, 'Candidato actualizado', `Candidato #${existing.id}: ${cambios.join(', ')}`)
   res.json(row)
 })
 
 router.delete('/:id', requireRole('Administrador','Jefatura'), (req, res) => {
-  const info = db.prepare('DELETE FROM candidatos WHERE id = ?').run(req.params.id)
-  if (info.changes === 0) return res.status(404).json({ error: 'Candidato no encontrado' })
+  const candidato = db.prepare('SELECT id, nombre FROM candidatos WHERE id = ?').get(req.params.id)
+  if (!candidato) return res.status(404).json({ error: 'Candidato no encontrado' })
+  // Las solicitudes y sus documentos se borran en cascada; las carpetas en disco hay que borrarlas aparte.
+  const carpetas = db.prepare('SELECT carpeta FROM solicitudes WHERE candidato_id = ? AND carpeta IS NOT NULL').all(candidato.id).map((r) => r.carpeta)
+  db.prepare('DELETE FROM candidatos WHERE id = ?').run(candidato.id)
+  for (const c of carpetas) {
+    try { borrarCarpeta(c) } catch (err) { console.error('[SIGMA-Aqua] No se pudo borrar la carpeta', c, err.message) }
+  }
+  audit(req, 'Candidato eliminado', `Candidato #${candidato.id}: ${candidato.nombre} (${carpetas.length} carpeta(s) de solicitud eliminadas)`)
   res.status(204).end()
 })
 

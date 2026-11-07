@@ -34,3 +34,16 @@ y espacio para apuntes/transcripción.
 > Las competencias y preguntas son una **propuesta inicial**: deben validarse con el equipo de
 > evaluación psicolaboral de AquaChile. Se pueden editar directamente en Excel/Word sin tocar el código,
 > siempre que se mantengan los nombres de archivo y las celdas con nombre del informe.
+
+## Llenado automático
+
+El backend escribe en el informe de cada solicitud (`backend/src/informe.js`, librería `exceljs`):
+
+- **Al crear la carpeta:** `Candidato` y `Cargo` (cargo y familia).
+- **Cada vez que se guarda la evaluación en el panel:** `Conclusiones` (observaciones + recomendaciones y próximos pasos),
+  `Recomendacion` (resultado), `FechaEvaluacion`, `Evaluador` (responsable asignado) y el nivel de cada competencia
+  en la hoja `Competencias`. Mientras la evaluación sea borrador, el título termina en "(BORRADOR)".
+
+El panel muestra las competencias que lee de la hoja `Competencias` de la plantilla de cada familia (filas desde la 4
+hasta "Promedio"), así que editar una competencia en la plantilla la cambia también en el panel.
+`Antecedentes`, `Motivacion`, `Fortalezas`, `Oportunidades` e `Instrumentos` no tienen campo en el panel todavía.

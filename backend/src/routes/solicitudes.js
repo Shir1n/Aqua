@@ -2,6 +2,11 @@ import { Router } from 'express'
 import { db, ESTADOS } from '../db.js'
 import { notify } from './extra.js'
 import { audit, requireRole } from '../security.js'
+import { rmSync, unlinkSync } from 'node:fs'
+import { crearCarpetaSolicitud, guardarArchivoEnCarpeta, rutaAbsoluta } from '../carpetas.js'
+import { borrarTemporales, recibirArchivos } from '../subidas.js'
+import { competenciasDeFamilia, escribirEvaluacion, prellenarInformeSeguro } from '../informe.js'
+import { asincrono } from '../asincrono.js'
 
 const router = Router()
 
@@ -44,7 +49,8 @@ router.get('/', (req, res) => {
   res.json(rows)
 })
 
-router.get('/:id', (req, res) => {
+router.get('/:id', asincrono(async (req, res, next) => {
+  try {
   const row = db.prepare(`${SOLICITUD_SELECT} WHERE s.id = ?`).get(req.params.id)
   if (!row) return res.status(404).json({ error: 'Solicitud no encontrada' })
   const evaluacion = db
@@ -53,40 +59,124 @@ router.get('/:id', (req, res) => {
   const documentos = db
     .prepare('SELECT id, tipo, nombre, creado_en FROM documentos WHERE solicitud_id = ? ORDER BY id')
     .all(req.params.id)
-  res.json({ ...row, evaluacion: evaluacion || null, documentos })
-})
+  // Competencias de la familia según su plantilla de informe (las mismas que se escriben en el Excel).
+  const competencias_familia = await competenciasDeFamilia(row.familia_cargo).catch(() => [])
+  res.json({ ...row, evaluacion: evaluacion || null, documentos, competencias_familia })
+  } catch (err) { next(err) }
+}))
 
-router.post('/', requireRole('Administrador','Analista','Jefatura'), (req, res) => {
+router.post('/', requireRole('Administrador','Analista','Jefatura'), asincrono(async (req, res, next) => {
   const { candidatoId, cargo, familiaCargo, fechaSolicitud, estado, responsableId, observaciones } = req.body || {}
   if (!candidatoId || !cargo || !familiaCargo) {
     return res.status(400).json({ error: 'Candidato, cargo y familia de cargo son obligatorios' })
   }
-  const candidato = db.prepare('SELECT id FROM candidatos WHERE id = ?').get(candidatoId)
+  const candidato = db.prepare('SELECT id, nombre FROM candidatos WHERE id = ?').get(candidatoId)
   if (!candidato) return res.status(400).json({ error: 'Candidato no existe' })
+  if (estado !== undefined && !ESTADOS.includes(estado)) return res.status(400).json({ error: 'Estado inválido' })
+  if (estado === 'Finalizada') return res.status(400).json({ error: 'Una solicitud nueva no puede crearse finalizada' })
+  if (responsableId && !db.prepare('SELECT id FROM usuarios WHERE id = ? AND activo = 1').get(responsableId)) {
+    return res.status(400).json({ error: 'El responsable no existe o está desactivado' })
+  }
 
   const creadoEn = new Date().toISOString()
-  const info = db
-    .prepare(
-      `INSERT INTO solicitudes
-       (candidato_id, cargo, familia_cargo, fecha_solicitud, estado, responsable_id, observaciones, creado_en)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      candidatoId,
-      cargo,
+  let carpetaCreada = null
+  let documentosCreados = []
+  let info
+  db.exec('BEGIN')
+  try {
+    info = db
+      .prepare(
+        `INSERT INTO solicitudes
+         (candidato_id, cargo, familia_cargo, fecha_solicitud, estado, responsable_id, observaciones, creado_en)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        candidatoId,
+        cargo,
+        familiaCargo,
+        fechaSolicitud || new Date().toISOString().slice(0, 10),
+        estado || 'Pendiente',
+        responsableId || null,
+        observaciones || '',
+        creadoEn
+      )
+    // Igual que el formulario público: carpeta con formulario y plantillas; el CV se adjunta después.
+    const solicitudId = Number(info.lastInsertRowid)
+    const carpeta = crearCarpetaSolicitud({
+      solicitudId,
+      nombreCandidato: candidato.nombre,
       familiaCargo,
-      fechaSolicitud || new Date().toISOString().slice(0, 10),
-      estado || 'Pendiente',
-      responsableId || null,
-      observaciones || '',
-      creadoEn
-    )
+      formulario: { solicitudId, recibidoEn: creadoEn, origenRegistro: 'Panel', creadoPor: req.user.nombre, candidato: candidato.nombre, cargo, familiaCargo, observaciones: observaciones || '' },
+    })
+    carpetaCreada = carpeta.carpetaAbs
+    documentosCreados = carpeta.documentos
+    db.prepare('UPDATE solicitudes SET carpeta = ? WHERE id = ?').run(carpeta.carpeta, solicitudId)
+    const insertDoc = db.prepare('INSERT INTO documentos (solicitud_id, tipo, nombre, ruta, creado_en) VALUES (?, ?, ?, ?, ?)')
+    for (const d of carpeta.documentos) insertDoc.run(solicitudId, d.tipo, d.nombre, d.ruta, creadoEn)
+    db.exec('COMMIT')
+  } catch (err) {
+    db.exec('ROLLBACK')
+    if (carpetaCreada) rmSync(carpetaCreada, { recursive: true, force: true })
+    return next(err)
+  }
+  const aviso = await prellenarInformeSeguro(documentosCreados, { candidato: candidato.nombre, cargo, familiaCargo })
+  if (aviso) registrarHistorial(info.lastInsertRowid, 'Advertencia', aviso)
   notify(responsableId,'Nueva evaluación asignada',`Solicitud #${info.lastInsertRowid}: ${cargo}`,`/solicitudes/${info.lastInsertRowid}`)
   audit(req,'Solicitud creada',String(info.lastInsertRowid))
-  registrarHistorial(info.lastInsertRowid, 'Solicitud creada', `Estado inicial: ${estado || 'Pendiente'}`)
+  registrarHistorial(info.lastInsertRowid, 'Solicitud creada', `Estado inicial: ${estado || 'Pendiente'}`, req.user.nombre)
   const row = db.prepare(`${SOLICITUD_SELECT} WHERE s.id = ?`).get(info.lastInsertRowid)
   res.status(201).json(row)
-})
+}))
+
+// Adjunta o reemplaza el CV y/o el descriptor de una solicitud (p. ej. las creadas desde el panel).
+router.post('/:id/documentos', requireRole('Administrador','Analista','Jefatura'), recibirArchivos, asincrono(async (req, res, next) => {
+  const files = req.files || {}
+  const solicitud = db.prepare(
+    'SELECT s.id, s.carpeta, s.cargo, s.familia_cargo, c.nombre AS candidato_nombre FROM solicitudes s JOIN candidatos c ON c.id = s.candidato_id WHERE s.id = ?'
+  ).get(req.params.id)
+  if (!solicitud) { borrarTemporales(files); return res.status(404).json({ error: 'Solicitud no encontrada' }) }
+  const nuevos = ['cv', 'descriptor'].filter((t) => files[t]?.[0])
+  if (!nuevos.length) return res.status(400).json({ error: 'Adjunta un CV o un descriptor (PDF, DOC o DOCX)' })
+
+  const creadoEn = new Date().toISOString()
+  let documentosNuevaCarpeta = []
+  try {
+    let carpeta = solicitud.carpeta
+    if (!carpeta) {
+      // Solicitudes antiguas sin carpeta: se crea completa, con plantillas.
+      const r = crearCarpetaSolicitud({
+        solicitudId: solicitud.id,
+        nombreCandidato: solicitud.candidato_nombre,
+        familiaCargo: solicitud.familia_cargo,
+        formulario: { solicitudId: solicitud.id, recibidoEn: creadoEn, origenRegistro: 'Carpeta creada al adjuntar documentos' },
+      })
+      carpeta = r.carpeta
+      db.prepare('UPDATE solicitudes SET carpeta = ? WHERE id = ?').run(carpeta, solicitud.id)
+      const insertDoc = db.prepare('INSERT INTO documentos (solicitud_id, tipo, nombre, ruta, creado_en) VALUES (?, ?, ?, ?, ?)')
+      for (const d of r.documentos) insertDoc.run(solicitud.id, d.tipo, d.nombre, d.ruta, creadoEn)
+      documentosNuevaCarpeta = r.documentos
+    }
+    for (const tipo of nuevos) {
+      const anteriores = db.prepare('SELECT id, ruta FROM documentos WHERE solicitud_id = ? AND tipo = ?').all(solicitud.id, tipo)
+      const doc = guardarArchivoEnCarpeta({ carpeta, nombreCandidato: solicitud.candidato_nombre, tipo, file: files[tipo][0] })
+      for (const a of anteriores) {
+        if (a.ruta !== doc.ruta) { try { unlinkSync(rutaAbsoluta(a.ruta)) } catch { /* ya no existe */ } }
+        db.prepare('DELETE FROM documentos WHERE id = ?').run(a.id)
+      }
+      db.prepare('INSERT INTO documentos (solicitud_id, tipo, nombre, ruta, creado_en) VALUES (?, ?, ?, ?, ?)').run(solicitud.id, tipo, doc.nombre, doc.ruta, creadoEn)
+      registrarHistorial(solicitud.id, `${tipo === 'cv' ? 'CV' : 'Descriptor'} ${anteriores.length ? 'reemplazado' : 'adjuntado'}`, doc.nombre, req.user.nombre)
+    }
+  } catch (err) {
+    borrarTemporales(files)
+    return next(err)
+  }
+  if (documentosNuevaCarpeta.length) {
+    const aviso = await prellenarInformeSeguro(documentosNuevaCarpeta, { candidato: solicitud.candidato_nombre, cargo: solicitud.cargo, familiaCargo: solicitud.familia_cargo })
+    if (aviso) registrarHistorial(solicitud.id, 'Advertencia', aviso)
+  }
+  audit(req, 'Documentos adjuntados', `Solicitud ${solicitud.id}: ${nuevos.join(', ')}`)
+  res.status(201).json(db.prepare('SELECT id, tipo, nombre, creado_en FROM documentos WHERE solicitud_id = ? ORDER BY id').all(solicitud.id))
+}))
 
 router.put('/:id', requireRole('Administrador','Analista','Jefatura','Evaluador'), (req, res) => {
   const existing = db.prepare('SELECT * FROM solicitudes WHERE id = ?').get(req.params.id)
@@ -164,7 +254,7 @@ router.get('/:id/evaluacion', (req, res) => {
   res.json(evaluacion || null)
 })
 
-router.post('/:id/evaluacion', requireRole('Administrador','Jefatura','Evaluador'), (req, res) => {
+router.post('/:id/evaluacion', requireRole('Administrador','Jefatura','Evaluador'), asincrono(async (req, res, next) => {
   const solicitud = db.prepare('SELECT id,responsable_id FROM solicitudes WHERE id = ?').get(req.params.id)
   if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' })
   const { fechaEvaluacion, resultado, observaciones, estado, competencias, recomendaciones, borrador } = req.body || {}
@@ -203,7 +293,30 @@ router.post('/:id/evaluacion', requireRole('Administrador','Jefatura','Evaluador
   if (borrador===false && estado==='Finalizada') { db.prepare("UPDATE solicitudes SET estado='Finalizada' WHERE id=?").run(req.params.id); registrarHistorial(req.params.id,'Evaluación finalizada',resultado,req.user.nombre); notify(solicitud.responsable_id,'Evaluación finalizada',`Solicitud #${req.params.id}`,`/solicitudes/${req.params.id}`) }
   audit(req,'Evaluación guardada',`Solicitud ${req.params.id}, borrador=${borrador!==false}`)
   const evaluacion = db.prepare('SELECT * FROM evaluaciones WHERE solicitud_id = ?').get(req.params.id)
-  res.status(201).json(evaluacion)
-})
+
+  // Traspasa la evaluación al informe Excel de la carpeta. Si falla, la evaluación queda guardada igual.
+  let advertencia_informe = null
+  const informe = db.prepare("SELECT ruta FROM documentos WHERE solicitud_id = ? AND tipo = 'informe' ORDER BY id DESC").get(req.params.id)
+  if (informe) {
+    try {
+      const evaluador = solicitud.responsable_id
+        ? db.prepare('SELECT nombre FROM usuarios WHERE id = ?').get(solicitud.responsable_id)?.nombre
+        : req.user.nombre
+      await escribirEvaluacion(rutaAbsoluta(informe.ruta), {
+        fechaEvaluacion: evaluacion.fecha_evaluacion,
+        evaluador,
+        resultado: evaluacion.resultado,
+        observaciones: evaluacion.observaciones,
+        recomendaciones: evaluacion.recomendaciones,
+        competencias: (() => { try { return JSON.parse(evaluacion.competencias || '{}') } catch { return {} } })(),
+        borrador: evaluacion.borrador !== 0,
+      })
+    } catch (err) {
+      console.error('[SIGMA-Aqua] No se pudo escribir el informe Excel:', err.message)
+      advertencia_informe = 'La evaluación se guardó, pero no se pudo actualizar el informe Excel (¿está abierto o fue movido?).'
+    }
+  }
+  res.status(201).json({ ...evaluacion, advertencia_informe })
+}))
 
 export default router

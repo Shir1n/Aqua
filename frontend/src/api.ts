@@ -1,12 +1,13 @@
-import type { Candidato, Dashboard, Evaluacion, Solicitud, Usuario } from './types'
+import type { Candidato, Dashboard, Documento, Evaluacion, Solicitud, Usuario } from './types'
+import { clearSession, getToken } from './session'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('aqua.token')
+  const token = getToken()
   const res = await fetch(path, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options?.headers },
   })
-  if (res.status === 401 && !['/api/auth/login','/api/auth/registro','/api/auth/verificar','/api/auth/reenviar-codigo'].includes(path)) { localStorage.removeItem('aqua.token'); localStorage.removeItem('aqua.user'); window.dispatchEvent(new Event('sigma-session-expired')) }
+  if (res.status === 401 && !['/api/auth/login','/api/auth/registro','/api/auth/verificar','/api/auth/reenviar-codigo'].includes(path)) { clearSession(); window.dispatchEvent(new Event('sigma-session-expired')) }
   if (res.status === 204) return undefined as T
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
@@ -43,7 +44,7 @@ export interface EvaluacionInput {
 
 // Descarga autenticada (un <a href> no envía el token de sesión).
 async function descargarArchivo(path: string, nombre: string) {
-  const token = localStorage.getItem('aqua.token')
+  const token = getToken()
   const res = await fetch(path, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
@@ -59,7 +60,20 @@ async function descargarArchivo(path: string, nombre: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+// Subida multipart (no usa request(): el navegador debe fijar el Content-Type con el boundary).
+async function subirDocumentos(id: number, archivos: { cv?: File | null; descriptor?: File | null }) {
+  const data = new FormData()
+  if (archivos.cv) data.append('cv', archivos.cv)
+  if (archivos.descriptor) data.append('descriptor', archivos.descriptor)
+  const token = getToken()
+  const res = await fetch(`/api/solicitudes/${id}/documentos`, { method: 'POST', body: data, headers: token ? { Authorization: `Bearer ${token}` } : {} })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(body.error || `Error ${res.status}`)
+  return body as Documento[]
+}
+
 export const api = {
+  subirDocumentos,
   descargarDocumento: (id: number, nombre: string) => descargarArchivo(`/api/documentos/${id}/descargar`, nombre),
   me: () => request<Usuario>('/api/auth/me'),
   logout: () => request<void>('/api/auth/logout',{method:'POST'}),

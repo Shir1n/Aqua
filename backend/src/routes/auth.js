@@ -57,7 +57,7 @@ router.get('/mi-actividad',requireAuth,(req,res)=>{
 router.post('/registro', async (req,res)=>{
   const {nombre,contrasena,rol='Analista'}=req.body||{}
   const correo=normalize(req.body?.correo)
-  if(typeof nombre !== 'string' || !nombre.trim() || !mailPattern.test(correo) || typeof contrasena !== 'string' || contrasena.length<8) return res.status(400).json({error:'Ingresa nombre, correo válido y contraseña de al menos 8 caracteres'})
+  if(typeof nombre !== 'string' || !nombre.trim() || !mailPattern.test(correo) || typeof contrasena !== 'string' || contrasena.length<12 || contrasena.length>128) return res.status(400).json({error:'Ingresa nombre, correo válido y contraseña de entre 12 y 128 caracteres'})
   if(typeof rol !== 'string' || !PUBLIC_ROLES.has(rol)) return res.status(403).json({error:'Este rol no está disponible para el registro público. Solicita su asignación a un administrador.'})
   if(db.prepare('SELECT id FROM usuarios WHERE lower(correo)=lower(?)').get(correo)) return res.status(409).json({error:'Ya existe una cuenta con ese correo'})
   const key='registro:'+correo

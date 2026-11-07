@@ -15,6 +15,9 @@ function estadoBadge(estado: string) {
   return map[estado] ?? 'secondary'
 }
 
+// Solo si la familia no tiene plantilla de informe.
+const COMPETENCIAS_GENERICAS = ['Comunicación', 'Trabajo en equipo', 'Adaptabilidad', 'Resolución de problemas', 'Seguridad y autocuidado'].map((nombre) => ({ nombre, descripcion: '' }))
+
 const TIPO_DOCUMENTO: Record<Documento['tipo'], string> = {
   cv: 'Currículum (CV)',
   descriptor: 'Descriptor del cargo',
@@ -26,15 +29,16 @@ const TIPO_DOCUMENTO: Record<Documento['tipo'], string> = {
 export default function SolicitudDetalle() {
   const { id } = useParams()
   const location = useLocation()
-  const origin = (location.state as { returnTo?: string; listFilters?: {q?:string;estado?:string} } | null)
+  const origin = (location.state as { returnTo?: string; listFilters?: {q?:string;estado?:string}; aviso?: string } | null)
   const returnTo = origin?.returnTo
   const safeReturnTo = returnTo && (/^\/(?:$|solicitudes(?:\?.*)?$|kanban$|herramientas$|buscar(?:\?.*)?$|agenda$|candidatos\/\d+\/historial$)/.test(returnTo)) ? returnTo : "/solicitudes"
   const [solicitud, setSolicitud] = useState<Solicitud | null>(null)
   const [candidato, setCandidato] = useState<Candidato | null>(null)
   const { user } = useAuth()
   const [loadError, setLoadError] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState(origin?.aviso ?? '')
   const [msg, setMsg] = useState('')
+  const [subiendo, setSubiendo] = useState(false)
   const avisar = (ok: string) => { setError(''); setMsg(ok) }
   const fallar = (e: unknown, porDefecto: string) => { setMsg(''); setError(e instanceof Error ? e.message : porDefecto) }
 
@@ -91,6 +95,22 @@ export default function SolicitudDetalle() {
     }
   }
 
+  const puedeAdjuntar = ['Administrador', 'Analista', 'Jefatura'].includes(user?.rol ?? '')
+
+  async function adjuntar(tipo: 'cv' | 'descriptor', file: File | undefined) {
+    if (!file) return
+    setSubiendo(true)
+    try {
+      await api.subirDocumentos(Number(id), { [tipo]: file })
+      avisar(tipo === 'cv' ? 'CV adjuntado' : 'Descriptor adjuntado')
+      load()
+    } catch (e) {
+      fallar(e, 'No se pudo adjuntar el documento')
+    } finally {
+      setSubiendo(false)
+    }
+  }
+
   async function descargar(doc: Documento) {
     try {
       await api.descargarDocumento(doc.id, doc.nombre)
@@ -102,13 +122,21 @@ export default function SolicitudDetalle() {
   async function onEvalSubmit(e: FormEvent) {
     e.preventDefault()
     try {
-      await api.saveEvaluacion(Number(id), evalForm)
-      avisar('Evaluación registrada')
+      const r = await api.saveEvaluacion(Number(id), evalForm)
+      if (r?.advertencia_informe) fallar(null, r.advertencia_informe)
+      else avisar(solicitud?.documentos?.some((d) => d.tipo === 'informe') ? 'Evaluación registrada y traspasada al informe Excel' : 'Evaluación registrada')
       load()
     } catch (err) {
       fallar(err, 'Error al registrar evaluación')
     }
   }
+
+  // Competencias de la familia (plantilla) + las que ya tenga guardadas una evaluación antigua.
+  const competencias = (() => {
+    const base = solicitud?.competencias_familia?.length ? solicitud.competencias_familia : COMPETENCIAS_GENERICAS
+    const extra = Object.keys(evalForm.competencias).filter((n) => evalForm.competencias[n] && !base.some((c) => c.nombre === n))
+    return [...base, ...extra.map((nombre) => ({ nombre, descripcion: 'Registrada con la lista anterior de competencias' }))]
+  })()
 
   if (loadError) return <div className="alert alert-danger">{loadError}</div>
   if (!solicitud) return <p className="text-muted">Cargando…</p>
@@ -188,6 +216,27 @@ export default function SolicitudDetalle() {
               ) : (
                 <p className="text-muted small mb-0">Esta solicitud no tiene documentos adjuntos.</p>
               )}
+              {puedeAdjuntar && (
+                <div className="d-flex gap-2 flex-wrap mt-2">
+                  {(['cv', 'descriptor'] as const).map((tipo) => {
+                    const existe = solicitud.documentos?.some((d) => d.tipo === tipo)
+                    const etiqueta = `${existe ? 'Reemplazar' : 'Adjuntar'} ${tipo === 'cv' ? 'CV' : 'descriptor'}`
+                    return (
+                      <label key={tipo} className={`btn btn-sm btn-outline-secondary mb-0${subiendo ? ' disabled' : ''}`}>
+                        {etiqueta}
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          aria-label={etiqueta}
+                          hidden
+                          disabled={subiendo}
+                          onChange={(e) => { void adjuntar(tipo, e.target.files?.[0]); e.target.value = '' }}
+                        />
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
 
               <hr />
               <label className="form-label">Actualizar estado</label>
@@ -213,7 +262,7 @@ export default function SolicitudDetalle() {
               <p className="sigma-form-intro">Registra el resultado, la fecha y las observaciones de la evaluación.</p>
               <form onSubmit={onEvalSubmit}>
                 <div className="sigma-competencies"><label className="form-label fw-semibold">Competencias evaluadas</label><p className="text-muted small">Escala de 1 (bajo) a 5 (sobresaliente). Deja sin evaluar si no corresponde.</p>
-                {['Comunicación','Trabajo en equipo','Adaptabilidad','Resolución de problemas','Seguridad y autocuidado'].map(c=><div className="sigma-competency-row" key={c}><span>{c}</span><select className="form-select form-select-sm" aria-label={`Puntaje de ${c}`} value={evalForm.competencias[c]||''} onChange={e=>setEvalForm(f=>({...f,competencias:{...f.competencias,[c]:Number(e.target.value)||0}}))}><option value="">Sin evaluar</option>{[1,2,3,4,5].map(n=><option value={n} key={n}>{n} / 5</option>)}</select></div>)}</div>
+                {competencias.map(({nombre:c,descripcion})=><div className="sigma-competency-row" key={c}><span title={descripcion || undefined}>{c}</span><select className="form-select form-select-sm" aria-label={`Puntaje de ${c}`} value={evalForm.competencias[c]||''} onChange={e=>setEvalForm(f=>({...f,competencias:{...f.competencias,[c]:Number(e.target.value)||0}}))}><option value="">Sin evaluar</option>{[1,2,3,4,5].map(n=><option value={n} key={n}>{n} / 5</option>)}</select></div>)}</div>
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label">Fecha de evaluación</label>
