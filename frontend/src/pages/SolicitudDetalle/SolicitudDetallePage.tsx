@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams, useLocation } from 'react-router-dom'
 import { api } from '../../api'
 import { ESTADOS, RESULTADOS } from '../../catalogs'
-import type { Candidato, Documento, Solicitud } from '../../types'
+import type { Candidato, Documento, Solicitud, Usuario } from '../../types'
 import { useAuth } from '../../AuthContext'
 import { abrirInformeSolicitud } from '../../utils/informeSolicitud'
 
@@ -50,6 +50,11 @@ export default function SolicitudDetalle() {
     competencias: {} as Record<string,number>,
     recomendaciones: '',
     borrador: true,
+    antecedentes: '',
+    motivacion: '',
+    fortalezas: '',
+    oportunidades: '',
+    evidencias: {} as Record<string, string>,
   })
 
   async function load() {
@@ -66,7 +71,15 @@ export default function SolicitudDetalle() {
           competencias: (()=>{try{return JSON.parse(s.evaluacion.competencias||'{}')}catch{return {}}})(),
           recomendaciones: s.evaluacion.recomendaciones||'',
           borrador: Boolean(s.evaluacion.borrador),
+          antecedentes: s.evaluacion.antecedentes || s.antecedentes_sugeridos || '',
+          motivacion: s.evaluacion.motivacion || '',
+          fortalezas: s.evaluacion.fortalezas || '',
+          oportunidades: s.evaluacion.oportunidades || '',
+          evidencias: (()=>{try{return JSON.parse(s.evaluacion.evidencias||'{}')}catch{return {}}})(),
         })
+      } else {
+        // Sin evaluación aún: antecedentes sugeridos a partir del formulario de solicitud.
+        setEvalForm((f) => ({ ...f, antecedentes: f.antecedentes || s.antecedentes_sugeridos || '' }))
       }
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Error al cargar')
@@ -76,6 +89,28 @@ export default function SolicitudDetalle() {
   useEffect(() => {
     load()
   }, [id])
+
+  const puedeAdjuntar = ['Administrador', 'Analista', 'Jefatura'].includes(user?.rol ?? '')
+  const [evaluadores, setEvaluadores] = useState<Usuario[]>([])
+
+  useEffect(() => {
+    if (!puedeAdjuntar) return
+    void (async () => {
+      try {
+        setEvaluadores((await api.getUsuarios()).filter((u) => u.rol === 'Evaluador'))
+      } catch { /* sin lista: el selector queda solo con la opción actual */ }
+    })()
+  }, [puedeAdjuntar])
+
+  async function onResponsableChange(valor: string) {
+    try {
+      await api.updateSolicitud(Number(id), { responsableId: valor ? Number(valor) : null })
+      avisar(valor ? 'Responsable asignado; se le envió una notificación' : 'Solicitud sin responsable')
+      load()
+    } catch (e) {
+      fallar(e, 'No se pudo asignar el responsable')
+    }
+  }
 
   function descargarResumen() {
     if (!solicitud) return
@@ -94,8 +129,6 @@ export default function SolicitudDetalle() {
       fallar(e, 'Error al actualizar')
     }
   }
-
-  const puedeAdjuntar = ['Administrador', 'Analista', 'Jefatura'].includes(user?.rol ?? '')
 
   async function adjuntar(tipo: 'cv' | 'descriptor', file: File | undefined) {
     if (!file) return
@@ -121,10 +154,24 @@ export default function SolicitudDetalle() {
 
   async function onEvalSubmit(e: FormEvent) {
     e.preventDefault()
+    const f = evalForm
+    // Los antecedentes no cuentan: vienen prellenados desde la solicitud.
+    const vacia = ![f.fechaEvaluacion, f.resultado, f.observaciones, f.recomendaciones, f.motivacion, f.fortalezas, f.oportunidades].some((v) => v?.trim())
+      && !Object.values(f.competencias).some((n) => n >= 1)
+      && !Object.values(f.evidencias).some((t) => t?.trim())
+    if (vacia) {
+      fallar(null, 'La evaluación está vacía: registra al menos una competencia, la fecha, el resultado u observaciones.')
+      return
+    }
+    if (!f.borrador && (!f.fechaEvaluacion || !f.resultado)) {
+      fallar(null, 'Para guardar la evaluación final, registra la fecha y el resultado general (o márcala como borrador).')
+      return
+    }
     try {
       const r = await api.saveEvaluacion(Number(id), evalForm)
+      const tipo = f.borrador ? 'Borrador guardado' : 'Evaluación final registrada'
       if (r?.advertencia_informe) fallar(null, r.advertencia_informe)
-      else avisar(solicitud?.documentos?.some((d) => d.tipo === 'informe') ? 'Evaluación registrada y traspasada al informe Excel' : 'Evaluación registrada')
+      else avisar(solicitud?.documentos?.some((d) => d.tipo === 'informe') ? `${tipo} y traspasado al informe Excel` : tipo)
       load()
     } catch (err) {
       fallar(err, 'Error al registrar evaluación')
@@ -239,8 +286,28 @@ export default function SolicitudDetalle() {
               )}
 
               <hr />
-              <label className="form-label">Actualizar estado</label>
+              {puedeAdjuntar && (
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="sol-responsable">Responsable (evaluador)</label>
+                  <select
+                    id="sol-responsable"
+                    className="form-select"
+                    value={solicitud.responsable_id ?? ''}
+                    onChange={(e) => onResponsableChange(e.target.value)}
+                  >
+                    <option value="">Sin asignar</option>
+                    {solicitud.responsable_id && !evaluadores.some((u) => u.id === solicitud.responsable_id) && (
+                      <option value={solicitud.responsable_id}>{solicitud.responsable_nombre ?? `Usuario #${solicitud.responsable_id}`}</option>
+                    )}
+                    {evaluadores.map((u) => (
+                      <option key={u.id} value={u.id}>{u.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <label className="form-label" htmlFor="sol-estado">Actualizar estado</label>
               <select
+                id="sol-estado"
                 className="form-select"
                 value={solicitud.estado}
                 onChange={(e) => onEstadoChange(e.target.value)}
@@ -259,10 +326,29 @@ export default function SolicitudDetalle() {
           <div className="card shadow-sm sigma-detail-card">
             <div className="card-header fw-semibold"><span className="sigma-card-eyebrow">RESULTADOS Y SEGUIMIENTO</span><strong>Evaluación psicolaboral</strong></div>
             <div className="card-body">
-              <p className="sigma-form-intro">Registra el resultado, la fecha y las observaciones de la evaluación.</p>
+              <p className="sigma-form-intro">Cada sección se traspasa a la misma sección del informe Excel.</p>
               <form onSubmit={onEvalSubmit}>
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="eval-antecedentes">Antecedentes del candidato</label>
+                  <textarea id="eval-antecedentes" className="form-control" rows={4} value={evalForm.antecedentes} onChange={(e) => setEvalForm((f) => ({ ...f, antecedentes: e.target.value }))} />
+                  <div className="form-text">Sugerido a partir de los datos de la solicitud; complétalo con la trayectoria del candidato.</div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label" htmlFor="eval-motivacion">Motivos de postulación</label>
+                  <textarea id="eval-motivacion" className="form-control" rows={3} value={evalForm.motivacion} onChange={(e) => setEvalForm((f) => ({ ...f, motivacion: e.target.value }))} />
+                </div>
                 <div className="sigma-competencies"><label className="form-label fw-semibold">Competencias evaluadas</label><p className="text-muted small">Escala de 1 (bajo) a 5 (sobresaliente). Deja sin evaluar si no corresponde.</p>
-                {competencias.map(({nombre:c,descripcion})=><div className="sigma-competency-row" key={c}><span title={descripcion || undefined}>{c}</span><select className="form-select form-select-sm" aria-label={`Puntaje de ${c}`} value={evalForm.competencias[c]||''} onChange={e=>setEvalForm(f=>({...f,competencias:{...f.competencias,[c]:Number(e.target.value)||0}}))}><option value="">Sin evaluar</option>{[1,2,3,4,5].map(n=><option value={n} key={n}>{n} / 5</option>)}</select></div>)}</div>
+                {competencias.map(({nombre:c,descripcion})=><div key={c} className="mb-2"><div className="sigma-competency-row"><span title={descripcion || undefined}>{c}</span><select className="form-select form-select-sm" aria-label={`Puntaje de ${c}`} value={evalForm.competencias[c]||''} onChange={e=>setEvalForm(f=>({...f,competencias:{...f.competencias,[c]:Number(e.target.value)||0}}))}><option value="">Sin evaluar</option>{[1,2,3,4,5].map(n=><option value={n} key={n}>{n} / 5</option>)}</select></div><input className="form-control form-control-sm" aria-label={`Evidencia de ${c}`} placeholder="Evidencia observada en la entrevista (opcional)" maxLength={1000} value={evalForm.evidencias[c]||''} onChange={e=>setEvalForm(f=>({...f,evidencias:{...f.evidencias,[c]:e.target.value}}))}/></div>)}</div>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label" htmlFor="eval-fortalezas">Fortalezas</label>
+                    <textarea id="eval-fortalezas" className="form-control" rows={3} value={evalForm.fortalezas} onChange={(e) => setEvalForm((f) => ({ ...f, fortalezas: e.target.value }))} />
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <label className="form-label" htmlFor="eval-oportunidades">Oportunidades de mejora</label>
+                    <textarea id="eval-oportunidades" className="form-control" rows={3} value={evalForm.oportunidades} onChange={(e) => setEvalForm((f) => ({ ...f, oportunidades: e.target.value }))} />
+                  </div>
+                </div>
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label className="form-label">Fecha de evaluación</label>
@@ -303,8 +389,9 @@ export default function SolicitudDetalle() {
                   </select>
                 </div>
                 <div className="mb-3">
-                  <label className="form-label">Observaciones</label>
+                  <label className="form-label" htmlFor="eval-observaciones">Conclusiones</label>
                   <textarea
+                    id="eval-observaciones"
                     className="form-control"
                     rows={3}
                     value={evalForm.observaciones}

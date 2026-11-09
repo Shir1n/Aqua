@@ -76,8 +76,13 @@ ${campo('Teléfono', candidato?.telefono || 'No disponible')}${campo('Cargo regi
 ${campo('Fecha de evaluación', solicitud.evaluacion?.fecha_evaluacion ? fecha(solicitud.evaluacion.fecha_evaluacion) : 'Pendiente')}
 ${campo('Resultado general', solicitud.evaluacion?.resultado || 'Pendiente')}
 ${campo('Estado de evaluación', solicitud.evaluacion?.estado || 'Sin evaluación registrada')}
-</div><div style="margin-top:12px" class="etiqueta">Observaciones de evaluación</div><div class="nota">${escapar(solicitud.evaluacion?.observaciones || 'Sin observaciones registradas')}</div></section>
-<section class="seccion"><h2>04 · Competencias y recomendaciones</h2><div class="grilla">${Object.entries((()=>{try{return JSON.parse(solicitud.evaluacion?.competencias||'{}') as Record<string,number>}catch{return {}}})()).filter(([,n])=>n>0).map(([c,n])=>campo(c,`${n} / 5`)).join('')||campo('Competencias','Sin puntuaciones registradas')}</div><div style="margin-top:12px" class="etiqueta">Recomendaciones</div><div class="nota">${escapar(solicitud.evaluacion?.recomendaciones||'Sin recomendaciones registradas')}</div></section>
+</div>${[
+  ['Antecedentes del candidato', solicitud.evaluacion?.antecedentes || solicitud.antecedentes_sugeridos],
+  ['Motivos de postulación', solicitud.evaluacion?.motivacion],
+  ['Fortalezas', solicitud.evaluacion?.fortalezas],
+  ['Oportunidades de mejora', solicitud.evaluacion?.oportunidades],
+].map(([t, v]) => `<div style="margin-top:12px" class="etiqueta">${escapar(t)}</div><div class="nota" style="white-space:pre-line">${escapar(v || 'Sin información registrada')}</div>`).join('')}<div style="margin-top:12px" class="etiqueta">Conclusiones</div><div class="nota" style="white-space:pre-line">${escapar(solicitud.evaluacion?.observaciones || 'Sin conclusiones registradas')}</div></section>
+<section class="seccion"><h2>04 · Competencias y recomendaciones</h2><div class="grilla">${Object.entries((()=>{try{return JSON.parse(solicitud.evaluacion?.competencias||'{}') as Record<string,number>}catch{return {}}})()).filter(([,n])=>n>0).map(([c,n])=>{const ev=(()=>{try{return (JSON.parse(solicitud.evaluacion?.evidencias||'{}') as Record<string,string>)[c]}catch{return ''}})();return campo(c,ev?`${n} / 5 · ${ev}`:`${n} / 5`)}).join('')||campo('Competencias','Sin puntuaciones registradas')}</div><div style="margin-top:12px" class="etiqueta">Recomendaciones</div><div class="nota">${escapar(solicitud.evaluacion?.recomendaciones||'Sin recomendaciones registradas')}</div></section>
 <section class="seccion"><h2>05 · Observaciones de la solicitud</h2><div class="nota">${escapar(solicitud.observaciones || 'Sin observaciones registradas')}</div></section>
 <section class="seccion"><h2>06 · Emisión y trazabilidad</h2><div class="grilla">
 ${campo('Emitido por', usuario?.nombre || 'No disponible')}${campo('Rol', usuario?.rol || 'No disponible')}

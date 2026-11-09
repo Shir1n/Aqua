@@ -5,7 +5,7 @@ import { audit, requireRole } from '../security.js'
 import { rmSync, unlinkSync } from 'node:fs'
 import { crearCarpetaSolicitud, guardarArchivoEnCarpeta, rutaAbsoluta } from '../carpetas.js'
 import { borrarTemporales, recibirArchivos } from '../subidas.js'
-import { competenciasDeFamilia, escribirEvaluacion, prellenarInformeSeguro } from '../informe.js'
+import { antecedentesSugeridos, competenciasDeFamilia, escribirEvaluacion, prellenarInformeSeguro } from '../informe.js'
 import { asincrono } from '../asincrono.js'
 
 const router = Router()
@@ -61,7 +61,7 @@ router.get('/:id', asincrono(async (req, res, next) => {
     .all(req.params.id)
   // Competencias de la familia según su plantilla de informe (las mismas que se escriben en el Excel).
   const competencias_familia = await competenciasDeFamilia(row.familia_cargo).catch(() => [])
-  res.json({ ...row, evaluacion: evaluacion || null, documentos, competencias_familia })
+  res.json({ ...row, evaluacion: evaluacion || null, documentos, competencias_familia, antecedentes_sugeridos: antecedentesSugeridos(row) })
   } catch (err) { next(err) }
 }))
 
@@ -119,7 +119,10 @@ router.post('/', requireRole('Administrador','Analista','Jefatura'), asincrono(a
     if (carpetaCreada) rmSync(carpetaCreada, { recursive: true, force: true })
     return next(err)
   }
-  const aviso = await prellenarInformeSeguro(documentosCreados, { candidato: candidato.nombre, cargo, familiaCargo })
+  const aviso = await prellenarInformeSeguro(documentosCreados, {
+    candidato: candidato.nombre, cargo, familiaCargo,
+    antecedentes: antecedentesSugeridos({ fecha_solicitud: fechaSolicitud || new Date().toISOString().slice(0, 10), reclutador: req.user.nombre, observaciones }),
+  })
   if (aviso) registrarHistorial(info.lastInsertRowid, 'Advertencia', aviso)
   notify(responsableId,'Nueva evaluación asignada',`Solicitud #${info.lastInsertRowid}: ${cargo}`,`/solicitudes/${info.lastInsertRowid}`)
   audit(req,'Solicitud creada',String(info.lastInsertRowid))
@@ -132,7 +135,7 @@ router.post('/', requireRole('Administrador','Analista','Jefatura'), asincrono(a
 router.post('/:id/documentos', requireRole('Administrador','Analista','Jefatura'), recibirArchivos, asincrono(async (req, res, next) => {
   const files = req.files || {}
   const solicitud = db.prepare(
-    'SELECT s.id, s.carpeta, s.cargo, s.familia_cargo, c.nombre AS candidato_nombre FROM solicitudes s JOIN candidatos c ON c.id = s.candidato_id WHERE s.id = ?'
+    'SELECT s.*, c.nombre AS candidato_nombre FROM solicitudes s JOIN candidatos c ON c.id = s.candidato_id WHERE s.id = ?'
   ).get(req.params.id)
   if (!solicitud) { borrarTemporales(files); return res.status(404).json({ error: 'Solicitud no encontrada' }) }
   const nuevos = ['cv', 'descriptor'].filter((t) => files[t]?.[0])
@@ -171,7 +174,7 @@ router.post('/:id/documentos', requireRole('Administrador','Analista','Jefatura'
     return next(err)
   }
   if (documentosNuevaCarpeta.length) {
-    const aviso = await prellenarInformeSeguro(documentosNuevaCarpeta, { candidato: solicitud.candidato_nombre, cargo: solicitud.cargo, familiaCargo: solicitud.familia_cargo })
+    const aviso = await prellenarInformeSeguro(documentosNuevaCarpeta, { candidato: solicitud.candidato_nombre, cargo: solicitud.cargo, familiaCargo: solicitud.familia_cargo, antecedentes: antecedentesSugeridos(solicitud) })
     if (aviso) registrarHistorial(solicitud.id, 'Advertencia', aviso)
   }
   audit(req, 'Documentos adjuntados', `Solicitud ${solicitud.id}: ${nuevos.join(', ')}`)
@@ -255,10 +258,22 @@ router.get('/:id/evaluacion', (req, res) => {
 })
 
 router.post('/:id/evaluacion', requireRole('Administrador','Jefatura','Evaluador'), asincrono(async (req, res, next) => {
-  const solicitud = db.prepare('SELECT id,responsable_id FROM solicitudes WHERE id = ?').get(req.params.id)
+  const solicitud = db.prepare('SELECT * FROM solicitudes WHERE id = ?').get(req.params.id)
   if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' })
-  const { fechaEvaluacion, resultado, observaciones, estado, competencias, recomendaciones, borrador } = req.body || {}
+  const { fechaEvaluacion, resultado, observaciones, estado, competencias, recomendaciones, borrador, antecedentes, motivacion, fortalezas, oportunidades, evidencias } = req.body || {}
+  const textoLibre = (v) => (typeof v === 'string' ? v.slice(0, 5000) : '')
+  const evidenciasLimpias = Object.fromEntries(
+    Object.entries(evidencias && typeof evidencias === 'object' ? evidencias : {})
+      .filter(([k, v]) => typeof k === 'string' && typeof v === 'string' && v.trim())
+      .slice(0, 20)
+      .map(([k, v]) => [k.slice(0, 200), v.slice(0, 1000)])
+  )
   if (!['Administrador','Jefatura'].includes(req.user.rol) && solicitud.responsable_id !== req.user.id) return res.status(403).json({error:'Solo el evaluador asignado puede modificar esta evaluación'})
+  const texto = (v) => typeof v === 'string' && v.trim() !== ''
+  const hayCompetencias = competencias && typeof competencias === 'object' && Object.values(competencias).some((n) => Number(n) >= 1)
+  if (![fechaEvaluacion, resultado, observaciones, recomendaciones, motivacion, fortalezas, oportunidades].some(texto) && !hayCompetencias && !Object.keys(evidenciasLimpias).length) {
+    return res.status(400).json({ error: 'La evaluación está vacía: registra al menos una competencia, la fecha, el resultado u observaciones' })
+  }
   if (borrador === false && (!resultado || !fechaEvaluacion)) return res.status(400).json({error:'Para finalizar, registra fecha y resultado'})
   const creadoEn = new Date().toISOString()
 
@@ -289,7 +304,11 @@ router.post('/:id/evaluacion', requireRole('Administrador','Jefatura','Evaluador
     )
   }
 
-  db.prepare('UPDATE evaluaciones SET competencias=?,recomendaciones=?,borrador=? WHERE solicitud_id=?').run(JSON.stringify(competencias||{}),String(recomendaciones||''),borrador===false?0:1,req.params.id)
+  db.prepare('UPDATE evaluaciones SET competencias=?,recomendaciones=?,borrador=?,antecedentes=?,motivacion=?,fortalezas=?,oportunidades=?,evidencias=? WHERE solicitud_id=?').run(
+    JSON.stringify(competencias||{}), String(recomendaciones||''), borrador===false?0:1,
+    textoLibre(antecedentes), textoLibre(motivacion), textoLibre(fortalezas), textoLibre(oportunidades), JSON.stringify(evidenciasLimpias),
+    req.params.id
+  )
   if (borrador===false && estado==='Finalizada') { db.prepare("UPDATE solicitudes SET estado='Finalizada' WHERE id=?").run(req.params.id); registrarHistorial(req.params.id,'Evaluación finalizada',resultado,req.user.nombre); notify(solicitud.responsable_id,'Evaluación finalizada',`Solicitud #${req.params.id}`,`/solicitudes/${req.params.id}`) }
   audit(req,'Evaluación guardada',`Solicitud ${req.params.id}, borrador=${borrador!==false}`)
   const evaluacion = db.prepare('SELECT * FROM evaluaciones WHERE solicitud_id = ?').get(req.params.id)
@@ -310,6 +329,11 @@ router.post('/:id/evaluacion', requireRole('Administrador','Jefatura','Evaluador
         recomendaciones: evaluacion.recomendaciones,
         competencias: (() => { try { return JSON.parse(evaluacion.competencias || '{}') } catch { return {} } })(),
         borrador: evaluacion.borrador !== 0,
+        antecedentes: evaluacion.antecedentes || antecedentesSugeridos(solicitud),
+        motivacion: evaluacion.motivacion,
+        fortalezas: evaluacion.fortalezas,
+        oportunidades: evaluacion.oportunidades,
+        evidencias: evidenciasLimpias,
       })
     } catch (err) {
       console.error('[SIGMA-Aqua] No se pudo escribir el informe Excel:', err.message)

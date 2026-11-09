@@ -31,6 +31,11 @@ export interface Evaluacion {
   recomendaciones?: string
   borrador?: number
   advertencia_informe?: string | null
+  antecedentes?: string | null
+  motivacion?: string | null
+  fortalezas?: string | null
+  oportunidades?: string | null
+  evidencias?: string | null
 }
 
 export interface CompetenciaFamilia {
@@ -53,6 +58,7 @@ export interface Solicitud {
   evaluacion?: Evaluacion | null
   documentos?: Documento[]
   competencias_familia?: CompetenciaFamilia[]
+  antecedentes_sugeridos?: string
   carpeta?: string | null
   reclutador?: string | null
   origen?: string | null
