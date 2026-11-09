@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   getCandidato: vi.fn(),
   actualizarEstado: vi.fn(),
   saveEvaluacion: vi.fn(),
+  getUsuarios: vi.fn(),
+  updateSolicitud: vi.fn(),
 }));
 
 vi.mock('../../api', () => ({
@@ -17,6 +19,8 @@ vi.mock('../../api', () => ({
     getCandidato: mocks.getCandidato,
     actualizarEstado: mocks.actualizarEstado,
     saveEvaluacion: mocks.saveEvaluacion,
+    getUsuarios: mocks.getUsuarios,
+    updateSolicitud: mocks.updateSolicitud,
   },
 }));
 
@@ -29,6 +33,8 @@ beforeEach(() => {
   mocks.getCandidato.mockReset();
   mocks.actualizarEstado.mockReset();
   mocks.saveEvaluacion.mockReset();
+  mocks.getUsuarios.mockReset().mockResolvedValue([{ id: 3, nombre: 'María Victoria', correo: 'mv@aqua.cl', rol: 'Evaluador' }]);
+  mocks.updateSolicitud.mockReset();
 });
 
 const solicitudMock = {
@@ -99,7 +105,7 @@ describe('SolicitudDetallePage', () => {
     await screen.findByRole('heading', { name: /Solicitud #1/ });
 
     const user = userEvent.setup();
-    const selectEstado = screen.getAllByRole('combobox')[0];
+    const selectEstado = screen.getByLabelText('Actualizar estado');
     await user.selectOptions(selectEstado, 'Finalizada');
 
     expect(mocks.actualizarEstado).toHaveBeenCalledWith(1, 'Finalizada');
@@ -115,10 +121,26 @@ describe('SolicitudDetallePage', () => {
 
     await screen.findByRole('heading', { name: /Solicitud #1/ });
     const user = userEvent.setup();
-    await user.selectOptions(screen.getAllByRole('combobox')[0], 'Finalizada');
+    await user.selectOptions(screen.getByLabelText('Actualizar estado'), 'Finalizada');
 
     expect(await screen.findByText(/Finaliza primero la evaluación/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Solicitud #1/ })).toBeInTheDocument();
+  });
+
+  it('asigna un responsable desde el detalle', async () => {
+    mocks.getSolicitud.mockResolvedValue(solicitudMock);
+    mocks.getCandidato.mockResolvedValue(candidatoMock);
+    mocks.updateSolicitud.mockResolvedValue({});
+
+    renderDetalle();
+
+    await screen.findByRole('heading', { name: /Solicitud #1/ });
+    const user = userEvent.setup();
+    await screen.findByRole('option', { name: 'María Victoria' });
+    await user.selectOptions(screen.getByLabelText('Responsable (evaluador)'), '3');
+
+    expect(mocks.updateSolicitud).toHaveBeenCalledWith(1, { responsableId: 3 });
+    expect(await screen.findByText(/Responsable asignado/)).toBeInTheDocument();
   });
 
   it('guarda la evaluación', async () => {
@@ -131,10 +153,25 @@ describe('SolicitudDetallePage', () => {
     await screen.findByRole('heading', { name: /Solicitud #1/ });
 
     const user = userEvent.setup();
+    await user.selectOptions(screen.getByLabelText('Puntaje de Comunicación'), '4');
     await user.click(screen.getByRole('button', { name: 'Guardar evaluación' }));
 
     expect(mocks.saveEvaluacion).toHaveBeenCalled();
-    expect(await screen.findByText('Evaluación registrada')).toBeInTheDocument();
+    expect(await screen.findByText('Borrador guardado')).toBeInTheDocument();
+  });
+
+  it('no guarda una evaluación vacía', async () => {
+    mocks.getSolicitud.mockResolvedValue(solicitudMock);
+    mocks.getCandidato.mockResolvedValue(candidatoMock);
+
+    renderDetalle();
+
+    await screen.findByRole('heading', { name: /Solicitud #1/ });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Guardar evaluación' }));
+
+    expect(mocks.saveEvaluacion).not.toHaveBeenCalled();
+    expect(await screen.findByText(/La evaluación está vacía/)).toBeInTheDocument();
   });
 
   it('el enlace "Volver" apunta a "/solicitudes"', async () => {

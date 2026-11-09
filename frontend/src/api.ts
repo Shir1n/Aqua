@@ -40,6 +40,11 @@ export interface EvaluacionInput {
   competencias?: Record<string,number>
   recomendaciones?: string
   borrador?: boolean
+  antecedentes?: string
+  motivacion?: string
+  fortalezas?: string
+  oportunidades?: string
+  evidencias?: Record<string, string>
 }
 
 // Descarga autenticada (un <a href> no envía el token de sesión).

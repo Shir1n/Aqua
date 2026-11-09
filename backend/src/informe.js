@@ -68,17 +68,50 @@ export async function competenciasDeFamilia(familiaCargo) {
   return lista
 }
 
-/** Al crear la carpeta: datos del candidato y del cargo. */
-export async function prellenarInforme(ruta, { candidato, cargo, familiaCargo }) {
+/**
+ * Texto sugerido para "Antecedentes del candidato" a partir de los datos de la solicitud
+ * (columnas de `solicitudes`). El evaluador puede editarlo en el panel.
+ */
+export function antecedentesSugeridos(s) {
+  const si = (v) => (v ? String(v).trim() : '')
+  const datos = [
+    si(s.origen) && `Candidato/a ${si(s.origen).toLowerCase()}`,
+    si(s.ubicacion) && `ubicación del cargo: ${si(s.ubicacion)}`,
+    si(s.unidad) && `unidad: ${si(s.unidad)}`,
+    si(s.ceco) && `CECO: ${si(s.ceco)}`,
+  ].filter(Boolean)
+  const lineas = []
+  if (datos.length) lineas.push(`${datos.join(', ')}.`.replace(/^./, (c) => c.toUpperCase()))
+  const solicitud = [
+    si(s.fecha_solicitud) && `Solicitud del ${si(s.fecha_solicitud).split('-').reverse().join('-')}`,
+    si(s.reclutador) && `${si(s.fecha_solicitud) ? 'realizada' : 'Solicitud realizada'} por ${si(s.reclutador)}`,
+  ].filter(Boolean).join(', ')
+  if (solicitud) lineas.push(`${solicitud}.`)
+  const extras = [
+    si(s.es_referido) && `Referido: ${si(s.es_referido)}`,
+    si(s.requiere_referencias) && `Requiere referencias: ${si(s.requiere_referencias)}`,
+  ].filter(Boolean)
+  if (extras.length) lineas.push(`${extras.join(' · ')}.`)
+  if (si(s.observaciones)) lineas.push(`Aspectos a indagar: ${si(s.observaciones)}`)
+  return lineas.join('\n')
+}
+
+/** Al crear la carpeta: datos del candidato y del cargo, y antecedentes sugeridos. */
+export async function prellenarInforme(ruta, { candidato, cargo, familiaCargo, antecedentes }) {
   const wb = await abrir(ruta)
   escribir(wb, 'Candidato', `Candidato/a: ${candidato}`)
   escribir(wb, 'Cargo', `Cargo: ${cargo} · Familia: ${familiaCargo}`)
+  if (antecedentes) escribir(wb, 'Antecedentes', antecedentes)
   await guardar(wb, ruta)
 }
 
 /** Al guardar la evaluación en el panel: resultado, fecha, evaluador, conclusiones y niveles. */
-export async function escribirEvaluacion(ruta, { fechaEvaluacion, evaluador, resultado, observaciones, recomendaciones, competencias, borrador }) {
+export async function escribirEvaluacion(ruta, { fechaEvaluacion, evaluador, resultado, observaciones, recomendaciones, competencias, borrador, antecedentes, motivacion, fortalezas, oportunidades, evidencias }) {
   const wb = await abrir(ruta)
+  escribir(wb, 'Antecedentes', antecedentes?.trim())
+  escribir(wb, 'Motivacion', motivacion?.trim())
+  escribir(wb, 'Fortalezas', fortalezas?.trim())
+  escribir(wb, 'Oportunidades', oportunidades?.trim())
   const conclusiones = [observaciones?.trim(), recomendaciones?.trim() && `Recomendaciones y próximos pasos: ${recomendaciones.trim()}`]
     .filter(Boolean).join('\n\n')
   escribir(wb, 'Conclusiones', conclusiones)
@@ -91,9 +124,14 @@ export async function escribirEvaluacion(ruta, { fechaEvaluacion, evaluador, res
 
   const hoja = wb.getWorksheet('Competencias')
   const niveles = competencias || {}
+  const evidencia = evidencias || {}
   for (const { fila, nombre } of filasCompetencias(wb)) {
     const nivel = Number(niveles[nombre])
     hoja.getCell(`C${fila}`).value = Number.isInteger(nivel) && nivel >= 1 && nivel <= 5 ? nivel : null
+    const texto = typeof evidencia[nombre] === 'string' ? evidencia[nombre].trim() : ''
+    const celda = hoja.getCell(`D${fila}`)
+    celda.value = texto || null
+    celda.alignment = { ...(celda.alignment || {}), wrapText: true, vertical: 'top' }
   }
 
   const titulo = celdaPorNombre(wb, 'Titulo')

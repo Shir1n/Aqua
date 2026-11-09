@@ -3,7 +3,7 @@ import { rmSync } from 'node:fs'
 import { db } from '../db.js'
 import { CODIGOS_FAMILIA, crearCarpetaSolicitud } from '../carpetas.js'
 import { borrarTemporales, recibirArchivos } from '../subidas.js'
-import { prellenarInformeSeguro } from '../informe.js'
+import { antecedentesSugeridos, prellenarInformeSeguro } from '../informe.js'
 import { asincrono } from '../asincrono.js'
 import { notify } from './extra.js'
 
@@ -117,7 +117,12 @@ router.post('/', limitarEnvios, recibirArchivos, asincrono(async (req, res, next
     return next(err)
   }
 
-  const aviso = await prellenarInformeSeguro(documentosCreados, { candidato: campos.nombreCandidato, cargo: campos.nombreCargo, familiaCargo: campos.familiaCargo })
+  const antecedentes = antecedentesSugeridos({
+    origen: campos.origen, ubicacion: campos.ubicacion, unidad: campos.unidad, ceco: campos.ceco,
+    reclutador: campos.reclutador, fecha_solicitud: new Date().toISOString().slice(0, 10),
+    es_referido: campos.esReferido, requiere_referencias: campos.requiereReferencias, observaciones: campos.aspectos,
+  })
+  const aviso = await prellenarInformeSeguro(documentosCreados, { candidato: campos.nombreCandidato, cargo: campos.nombreCargo, familiaCargo: campos.familiaCargo, antecedentes })
   if (aviso) {
     db.prepare('INSERT INTO historial_solicitudes (solicitud_id, accion, detalle, usuario, creado_en) VALUES (?, ?, ?, ?, ?)')
       .run(solicitudId, 'Advertencia', aviso, 'Sistema', new Date().toISOString())

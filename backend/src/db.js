@@ -89,6 +89,11 @@ export function initDb() {
     CREATE TABLE IF NOT EXISTS agenda(id INTEGER PRIMARY KEY AUTOINCREMENT, solicitud_id INTEGER NOT NULL REFERENCES solicitudes(id) ON DELETE CASCADE, evaluador_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL, fecha TEXT NOT NULL, hora TEXT NOT NULL, notas TEXT NOT NULL DEFAULT '', creado_en TEXT NOT NULL);
   `)
   for (const [col, ddl] of [['competencias','ALTER TABLE evaluaciones ADD COLUMN competencias TEXT'], ['recomendaciones','ALTER TABLE evaluaciones ADD COLUMN recomendaciones TEXT'], ['borrador','ALTER TABLE evaluaciones ADD COLUMN borrador INTEGER NOT NULL DEFAULT 1']]) { try { db.exec(ddl) } catch {} }
+  // Secciones del informe que se completan en el panel (antecedentes, motivos, fortalezas, oportunidades y evidencia por competencia).
+  const columnasEvaluacion = new Set(db.prepare('PRAGMA table_info(evaluaciones)').all().map((c) => c.name))
+  for (const col of ['antecedentes', 'motivacion', 'fortalezas', 'oportunidades', 'evidencias']) {
+    if (!columnasEvaluacion.has(col)) db.exec(`ALTER TABLE evaluaciones ADD COLUMN ${col} TEXT`)
+  }
   migrarSolicitudes()
   seed()
   asignarClavesIniciales()
